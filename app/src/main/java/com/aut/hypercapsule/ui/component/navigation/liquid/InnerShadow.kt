@@ -1,9 +1,7 @@
-// Copyright 2026, compose-miuix-ui contributors
-// SPDX-License-Identifier: Apache-2.0
-
-package com.aut.hypercapsule.ui.component.navigation
-
 // Adapted from Kyant0/AndroidLiquidGlass — https://github.com/Kyant0/AndroidLiquidGlass (Apache 2.0).
+// Mirrored from compose-miuix-ui example.
+
+package com.aut.hypercapsule.ui.component.navigation.liquid
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable

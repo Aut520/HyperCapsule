@@ -1,9 +1,7 @@
-// Copyright 2026, compose-miuix-ui contributors
-// SPDX-License-Identifier: Apache-2.0
-
-package com.aut.hypercapsule.ui.component.navigation
-
 // Adapted from Kyant0/AndroidLiquidGlass — https://github.com/Kyant0/AndroidLiquidGlass (Apache 2.0).
+// Mirrored from compose-miuix-ui example.
+
+package com.aut.hypercapsule.ui.component.navigation.liquid
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -14,12 +12,6 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.unit.Density
 import top.yukonga.miuix.kmp.blur.Backdrop
 
-/**
- * A [Backdrop] that draws [first] then [second] in order, allowing a tinted/overlay
- * backdrop to be sampled on top of a base backdrop. Mirrors Kyant's `CombinedBackdrop`
- * pattern used in `LiquidBottomTabs` to layer a recorded "tinted tabs" pass over the
- * underlying app background as a single sampling source for an indicator.
- */
 @Stable
 class CombinedBackdrop(
     val first: Backdrop,
@@ -43,4 +35,5 @@ class CombinedBackdrop(
 }
 
 @Composable
-fun rememberCombinedBackdrop(first: Backdrop, second: Backdrop): Backdrop = remember(first, second) { CombinedBackdrop(first, second) }
+fun rememberCombinedBackdrop(first: Backdrop, second: Backdrop): Backdrop =
+    remember(first, second) { CombinedBackdrop(first, second) }

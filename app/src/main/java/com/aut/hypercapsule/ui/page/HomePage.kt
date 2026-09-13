@@ -12,13 +12,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircleOutline
-import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -36,6 +34,9 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -56,7 +57,15 @@ fun HomePage(
                 enabledFeatureCount = enabledFeatureCount,
             )
         }
-        if (!moduleStatus.active) {
+        if (moduleStatus.active && !moduleStatus.platformSupported) {
+            item {
+                StatusAlertCard(
+                    modifier = Modifier.padding(top = 12.dp),
+                    title = stringResource(R.string.module_unsupported),
+                    message = stringResource(R.string.module_unsupported_summary, moduleStatus.platformLabel),
+                )
+            }
+        } else if (!moduleStatus.active) {
             item {
                 StatusAlertCard(
                     modifier = Modifier.padding(top = 12.dp),
@@ -129,18 +138,19 @@ private fun StatusGrid(
 
 @Composable
 private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
-    val active = status.active
-    val accentColor = if (active) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.error
-    val backgroundColor = if (active) {
-        MiuixTheme.colorScheme.primaryContainer
-    } else {
-        MiuixTheme.colorScheme.surfaceContainerHigh
-    }
-    val icon: ImageVector = if (active) Icons.Rounded.CheckCircleOutline else Icons.Rounded.ErrorOutline
+    val active = status.active && status.platformSupported
+    // Explicit soft status colors — Monet/primaryContainer can be a saturated
+    // blue that kills contrast for the title and version line.
+    val accentColor = if (active) StatusActiveInk else StatusInactiveInk
+    val backgroundColor = if (active) StatusActiveBg else StatusInactiveBg
+    val icon: ImageVector = if (active) MiuixIcons.Ok else MiuixIcons.Close
 
     Card(
         modifier = modifier,
-        colors = CardDefaults.defaultColors(color = backgroundColor),
+        colors = CardDefaults.defaultColors(
+            color = backgroundColor,
+            contentColor = accentColor,
+        ),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Icon(
@@ -150,21 +160,21 @@ private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
                     .align(Alignment.BottomEnd)
                     .offset(27.dp, 31.dp)
                     .size(110.dp),
-                tint = accentColor.copy(alpha = 0.72f),
+                tint = accentColor.copy(alpha = 0.28f),
             )
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = stringResource(
                         if (active) R.string.module_activated else R.string.module_not_activated,
                     ),
-                    color = MiuixTheme.colorScheme.onSurface,
+                    color = accentColor,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = stringResource(R.string.software_version, BuildConfig.VERSION_NAME),
                     modifier = Modifier.padding(top = 2.dp),
-                    color = accentColor,
+                    color = accentColor.copy(alpha = 0.72f),
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.Medium,
                 )
@@ -172,6 +182,12 @@ private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
         }
     }
 }
+
+// Soft mint / rose status surfaces with high-contrast ink for both themes.
+private val StatusActiveBg = Color(0xFFCDEFD8)
+private val StatusActiveInk = Color(0xFF0F3D24)
+private val StatusInactiveBg = Color(0xFFF8D4D0)
+private val StatusInactiveInk = Color(0xFF5C1812)
 
 @Composable
 private fun StatCard(

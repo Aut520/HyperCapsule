@@ -7,11 +7,21 @@
     <string name="nav_settings">设置</string>
     <string name="nav_about">关于</string>
     <string name="back">返回</string>
+    <string name="restart_scope">快速重启作用域</string>
+    <string name="restart_scope_summary">需要 Root 权限，杀死进程后系统会自动拉起</string>
+    <string name="restart_scope_hint">请勾选「系统界面」后再确认。仅重启模块作用域内的组件。</string>
+    <string name="restart_root_required">Root 权限被拒绝或执行失败</string>
+    <string name="cancel">取消</string>
+    <string name="confirm">确定</string>
+    <string name="list_actions">更多操作</string>
 
     <string name="module_activated">已激活</string>
     <string name="module_not_activated">未激活</string>
+    <string name="module_unsupported">当前系统不兼容</string>
     <string name="module_connected_summary">%1$s · API %2$d</string>
     <string name="module_waiting_summary">等待兼容 API 102 的 LSPosed 框架连接</string>
+    <string name="module_unsupported_summary">当前仅支持 Android 15 / HyperOS 2 与 Android 17 / HyperOS 4，检测到：%1$s</string>
+    <string name="supported_platform">支持状态</string>
     <string name="module_scope">作用域</string>
     <string name="module_scope_value">系统界面 · com.android.systemui</string>
     <string name="supported_systems">兼容范围</string>
@@ -53,8 +63,65 @@
     <string name="capsule_animation">胶囊过渡动画</string>
     <string name="capsule_animation_summary">状态栏出现、消失和旋转时使用弹性过渡</string>
     <string name="hook_pending_note">界面配置已保存；SystemUI Hook 接入后会使用相同设置。</string>
+    <string name="capsule_material_position">胶囊材质与位置</string>
+    <string name="capsule_material">胶囊材质</string>
+    <string name="material_original">原材质</string><string name="material_translucent">半透明</string><string name="material_gaussian">高斯模糊</string><string name="material_soft_glass">柔光玻璃</string><string name="material_liquid_glass">液态玻璃</string>
+    <string name="global_horizontal_offset">全局水平偏移 %1$d dp</string><string name="global_vertical_offset">全局垂直偏移 %1$d dp</string>
+    <string name="left_horizontal_offset">左胶囊水平偏移 %1$d dp</string><string name="left_vertical_offset">左胶囊垂直偏移 %1$d dp</string>
+    <string name="right_horizontal_offset">右胶囊水平偏移 %1$d dp</string><string name="right_vertical_offset">右胶囊垂直偏移 %1$d dp</string>
+    <string name="align_start">左对齐</string><string name="align_center">居中</string><string name="align_end">右对齐</string><string name="align_top">上对齐</string><string name="align_bottom">下对齐</string>
+    <string name="left_horizontal_alignment">左胶囊水平对齐</string><string name="left_vertical_alignment">左胶囊垂直对齐</string><string name="right_horizontal_alignment">右胶囊水平对齐</string><string name="right_vertical_alignment">右胶囊垂直对齐</string>
+    <string name="hook_safe_mode_enabled">Hook 已进入安全模式（检测到重复崩溃）</string><string name="hook_crash_protection_enabled">Hook 崩溃保护已启用</string><string name="confirm_hook_restore">确认恢复 Hook</string><string name="confirm_hook_restore_summary">确认后恢复此前保存的胶囊设置</string>
+
+    <string name="group_material_select">材质选择</string>
+    <string name="group_material_params">材质参数</string>
+    <string name="capsule_tone">色调</string>
+    <string name="tone_auto">自动</string>
+    <string name="tone_dark">深色</string>
+    <string name="tone_light">浅色</string>
+    <string name="capsule_alpha">透明度 %1$d%%</string>
+    <string name="capsule_blur_radius">模糊半径 %1$d dp</string>
+    <string name="group_glass_params">玻璃参数</string>
+    <string name="capsule_edge_strength">边缘强度 %1$d%%</string>
+    <string name="capsule_refraction_strength">折射强度 %1$d%%</string>
+    <string name="capsule_light_direction">光照方向 %1$d°</string>
+    <string name="group_size_alignment">尺寸与对齐</string>
+    <string name="capsule_corner_radius">圆角半径</string>
+    <string name="capsule_corner_radius_auto">自动（半圆）</string>
+    <string name="capsule_corner_radius_value">%1$d dp</string>
+    <string name="capsule_height">胶囊高度 %1$d dp</string>
+    <string name="horizontal_padding">水平内边距 %1$d dp</string>
+    <string name="vertical_inset">垂直间距 %1$d dp</string>
+    <string name="group_left_right_control">左右独立控制</string>
+    <string name="left_capsule_enabled">左胶囊</string>
+    <string name="left_capsule_enabled_summary">显示左侧时间胶囊</string>
+    <string name="include_notification_icons">包含通知图标</string>
+    <string name="include_notification_icons_summary">左侧胶囊包裹时间右边的通知图标</string>
+    <string name="left_padding_x">左胶囊额外水平边距 %1$d dp</string>
+    <string name="left_padding_y">左胶囊额外垂直边距 %1$d dp</string>
+    <string name="right_capsule_enabled">右胶囊</string>
+    <string name="right_capsule_enabled_summary">显示右侧系统图标胶囊</string>
+    <string name="right_padding_x">右胶囊额外水平边距 %1$d dp</string>
+    <string name="right_padding_y">右胶囊额外垂直边距 %1$d dp</string>
+    <string name="reset_capsule">重置胶囊参数</string>
+    <string name="reset_capsule_summary">将所有胶囊材质、尺寸和偏移恢复默认值</string>
+    <string name="capsule_reset_done">胶囊参数已恢复</string>
 
     <string name="group_appearance">界面</string>
+    <string name="theme_page_title">界面主题</string>
+    <string name="theme_page_summary">配色模式、调色板与外观组件</string>
+    <string name="theme_section_color">配色</string>
+    <string name="theme_color_mode">深浅模式</string>
+    <string name="theme_mode_system">跟随系统</string>
+    <string name="theme_mode_light">浅色</string>
+    <string name="theme_mode_dark">深色</string>
+    <string name="theme_palette">调色板风格</string>
+    <string name="theme_monet_note">动态配色开启时按壁纸取色，调色板暂不生效</string>
+    <string name="palette_tonal_spot">Tonal Spot</string>
+    <string name="palette_vibrant">Vibrant</string>
+    <string name="palette_expressive">Expressive</string>
+    <string name="palette_neutral">Neutral</string>
+    <string name="group_reset">重置</string>
     <string name="dynamic_color">动态配色</string>
     <string name="dynamic_color_summary">跟随壁纸和系统深浅模式；关闭后使用蓝色主题</string>
     <string name="floating_navigation">悬浮底栏</string>

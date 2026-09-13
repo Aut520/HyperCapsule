@@ -2,8 +2,6 @@ package com.aut.hypercapsule.ui.page
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -14,6 +12,8 @@ import com.aut.hypercapsule.ui.AppPreferences
 import com.aut.hypercapsule.ui.component.RootPage
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Layers
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -41,7 +41,7 @@ fun FeaturesPage(
                     ) + " · " + stringResource(R.string.system_ui_summary),
                     startAction = {
                         Icon(
-                            imageVector = Icons.Rounded.BarChart,
+                            imageVector = MiuixIcons.Layers,
                             contentDescription = null,
                             modifier = Modifier.padding(end = 6.dp),
                             tint = MiuixTheme.colorScheme.onBackground,

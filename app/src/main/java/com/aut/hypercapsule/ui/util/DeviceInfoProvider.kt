@@ -3,12 +3,13 @@ package com.aut.hypercapsule.ui.util
 import android.content.Context
 import android.os.Build
 import android.provider.Settings
-import java.util.concurrent.TimeUnit
 
 /**
  * Reads the same user-facing device values used by HyperCeiler's about card.
- * System properties are read reflectively first, with a small getprop fallback
- * for vendor builds that hide the reflection entry point.
+ *
+ * Property access is reflection-only and cached. Never spawn getprop on the
+ * main thread — SELinux denials made every Home/About recomposition fork a
+ * process and drop frames while paging.
  */
 data class DeviceInfo(
     val name: String,
@@ -18,7 +19,17 @@ data class DeviceInfo(
 )
 
 object DeviceInfoProvider {
+    @Volatile
+    private var cached: DeviceInfo? = null
+
     fun read(context: Context): DeviceInfo {
+        cached?.let { return it }
+        val info = readUncached(context)
+        cached = info
+        return info
+    }
+
+    private fun readUncached(context: Context): DeviceInfo {
         val model = firstValid(
             property("ro.product.marketname"),
             Build.MODEL,
@@ -46,7 +57,6 @@ object DeviceInfoProvider {
         }
         val name = formatDeviceName(rawName, model)
         val androidVersion = firstValid(
-            property("ro.build.version.release"),
             Build.VERSION.RELEASE,
             Build.VERSION.SDK_INT.toString(),
             fallback = Build.VERSION.SDK_INT.toString(),
@@ -73,23 +83,11 @@ object DeviceInfoProvider {
     }.getOrNull().takeIfValid()
 
     private fun property(key: String): String {
-        val reflected = runCatching {
+        return runCatching {
             val clazz = Class.forName("android.os.SystemProperties")
             val method = clazz.getMethod("get", String::class.java, String::class.java)
             method.invoke(null, key, "") as? String
         }.getOrNull().orEmpty().trim()
-        if (reflected.isNotEmpty()) return reflected
-
-        return runCatching {
-            val process = ProcessBuilder("/system/bin/getprop", key)
-                .redirectErrorStream(true)
-                .start()
-            if (!process.waitFor(1, TimeUnit.SECONDS)) {
-                process.destroy()
-                return@runCatching ""
-            }
-            process.inputStream.bufferedReader().use { it.readText().trim() }
-        }.getOrDefault("")
     }
 
     private fun formatDeviceName(name: String, model: String): String {
