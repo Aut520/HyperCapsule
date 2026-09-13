@@ -1,0 +1,38 @@
+# Whitelist source and the minimum files required to build the Android module.
+# Everything else (documents, reference material, generated output and local
+# machine state) stays local and is intentionally excluded from Git.
+*
+
+!.gitignore
+!README.md
+!LICENSE
+
+# Root Gradle project files required by Android Studio/Gradle.
+!build.gradle.kts
+!settings.gradle.kts
+!gradle.properties
+!gradlew
+!gradlew.bat
+!gradle/
+!gradle/**
+
+# Application build configuration and source/resource trees.
+!app/
+!app/build.gradle.kts
+!app/proguard-rules.pro
+!app/src/
+!app/src/**
+
+# Explicitly keep generated/local trees out even if a future rule is added.
+app/build/
+app/.gitignore
+gradle/gradle-daemon-jvm.properties
+build/
+.gradle/
+.idea/
+doc/
+other/
+local.properties
+captures/
+**/.externalNativeBuild/
+**/.cxx/
