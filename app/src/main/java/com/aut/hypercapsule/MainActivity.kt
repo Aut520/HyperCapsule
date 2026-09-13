@@ -58,8 +58,6 @@ class MainActivity : ComponentActivity() {
             ) { dark },
         )
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = Color.TRANSPARENT
-        window.navigationBarColor = Color.TRANSPARENT
         window.isNavigationBarContrastEnforced = false
     }
 }

@@ -81,8 +81,6 @@ fun HyperCapsuleTheme(
                 ) { darkTheme },
             )
             WindowCompat.setDecorFitsSystemWindows(activity.window, false)
-            activity.window.statusBarColor = android.graphics.Color.TRANSPARENT
-            activity.window.navigationBarColor = android.graphics.Color.TRANSPARENT
             activity.window.isNavigationBarContrastEnforced = false
             WindowInsetsControllerCompat(activity.window, activity.window.decorView).apply {
                 isAppearanceLightStatusBars = !darkTheme
