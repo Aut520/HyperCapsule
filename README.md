@@ -22,8 +22,6 @@ gradlew.bat assembleDebug
 
 产物：`app/build/outputs/apk/debug/app-debug.apk`
 
-Release 需在 `other/signing/keystore.properties` 配置签名后执行 `assembleRelease`。
-
 ## 使用
 
 1. 安装 APK，在 LSPosed 中启用模块  

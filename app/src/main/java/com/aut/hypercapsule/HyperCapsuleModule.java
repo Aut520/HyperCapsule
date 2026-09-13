@@ -538,7 +538,10 @@ public final class HyperCapsuleModule extends XposedModule {
                     out.set(children);
                     return true;
                 }
-                if (view.getWidth() > root.getWidth() * .8f) return false;
+                // Empty container (e.g. notification area with no icons):
+                // do not use its layout bounds or the left capsule stretches
+                // from the clock to the far edge of a blank slot.
+                return false;
             }
             int[] location = new int[2];
             int[] rootLocation = new int[2];
