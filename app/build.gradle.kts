@@ -11,6 +11,13 @@ if (signingPropertiesFile.exists()) {
     signingPropertiesFile.inputStream().use(signingProperties::load)
 }
 
+// CI (GitHub Actions) passes the keystore path and passwords via env.
+// Local builds keep using other/signing/keystore.properties.
+val ciKeystore = System.getenv("HC_KEYSTORE")
+val ciStorePassword = System.getenv("APP_PASSWD")
+val ciKeyAlias = System.getenv("APP_SIG_KEY_ALIAS")
+val ciKeyPassword = System.getenv("APP_SIG_PASSWD")
+
 android {
     namespace = "com.aut.hypercapsule"
     compileSdk = 37
@@ -25,10 +32,11 @@ android {
 
     signingConfigs {
         create("release") {
-            signingProperties.getProperty("storeFile")?.let { storeFile = file(it) }
-            storePassword = signingProperties.getProperty("storePassword")
-            keyAlias = signingProperties.getProperty("keyAlias")
-            keyPassword = signingProperties.getProperty("keyPassword")
+            val storePath = ciKeystore ?: signingProperties.getProperty("storeFile")
+            storePath?.let { storeFile = file(it) }
+            storePassword = ciStorePassword ?: signingProperties.getProperty("storePassword")
+            keyAlias = ciKeyAlias ?: signingProperties.getProperty("keyAlias")
+            keyPassword = ciKeyPassword ?: signingProperties.getProperty("keyPassword")
         }
     }
 
