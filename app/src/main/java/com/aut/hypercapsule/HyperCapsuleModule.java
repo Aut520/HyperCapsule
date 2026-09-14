@@ -258,6 +258,9 @@ public final class HyperCapsuleModule extends XposedModule {
         if (preferenceListenerInstalled) return;
         synchronized (LOCK) {
             if (preferenceListenerInstalled) return;
+            // Bind only to the remote store; a temporary SystemUI-local fallback
+            // would never see manager-app writes and would pin the listener forever.
+            if (preferences != remotePreferences) return;
             preferences.registerOnSharedPreferenceChangeListener(PREFERENCE_LISTENER);
             preferenceListenerInstalled = true;
         }

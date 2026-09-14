@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
@@ -110,6 +112,9 @@ fun DetailPage(
             .add(WindowInsets.displayCutout)
             .only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
+        // Scaffold bottom inset is 0 here (Horizontal-only window insets), so the
+        // gesture/nav bar clearance must be read explicitly like HyperBottomBar.
+        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -118,7 +123,7 @@ fun DetailPage(
                 .padding(horizontal = 12.dp),
             contentPadding = PaddingValues(
                 top = innerPadding.calculateTopPadding() + 8.dp,
-                bottom = innerPadding.calculateBottomPadding() + 32.dp,
+                bottom = navBarBottom + 32.dp,
             ),
             overscrollEffect = null,
             content = content,

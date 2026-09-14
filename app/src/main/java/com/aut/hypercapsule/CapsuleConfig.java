@@ -99,7 +99,7 @@ public final class CapsuleConfig {
                 clamp(p.getInt(RIGHT_H, 2), 0, 2), clamp(p.getInt(RIGHT_V, 1), 0, 2),
                 clamp(p.getFloat(CORNER_RADIUS, -1f), -1f, 40f),
                 p.getBoolean(INCLUDE_NOTIFICATION, true),
-                p.getBoolean(SAFE_MODE, false), p.getInt(CRASH_COUNT, 0),
+                p.getBoolean(SAFE_MODE, false), clamp(p.getInt(CRASH_COUNT, 0), 0, 3),
                 p.getLong(LAST_CRASH, 0L), p.getBoolean(RESTORE_PENDING, false));
     }
 
