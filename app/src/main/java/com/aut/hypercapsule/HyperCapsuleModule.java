@@ -242,16 +242,16 @@ public final class HyperCapsuleModule extends XposedModule {
         if (cached != null) return cached;
         try {
             remotePreferences = getRemotePreferences(CapsuleConfig.PREFS);
+            return remotePreferences;
         } catch (Throwable error) {
+            // Temporary fallback only — never cache SystemUI's local prefs as the
+            // remote store, otherwise a one-shot failure permanently disables config.
             Context context = systemUiContext;
             if (context != null) {
-                remotePreferences = context.getSharedPreferences(
-                        CapsuleConfig.PREFS, Context.MODE_PRIVATE);
-            } else {
-                throw error;
+                return context.getSharedPreferences(CapsuleConfig.PREFS, Context.MODE_PRIVATE);
             }
+            throw error;
         }
-        return remotePreferences;
     }
 
     private static void registerPreferenceListener(SharedPreferences preferences) {
@@ -349,13 +349,14 @@ public final class HyperCapsuleModule extends XposedModule {
             for (Map.Entry<View, Integer> entry : MODES.entrySet()) {
                 View root = entry.getKey();
                 Integer mode = entry.getValue();
-                if (root != null && mode != null) {
-                    root.post(() -> {
-                        try {
-                            updateRoot(root, mode, remotePreferences);
-                        } catch (Throwable ignored) { }
-                    });
-                }
+                if (root == null || mode == null) continue;
+                final SharedPreferences prefs = remotePreferences;
+                if (prefs == null) continue;
+                root.post(() -> {
+                    try {
+                        updateRoot(root, mode, prefs);
+                    } catch (Throwable ignored) { }
+                });
             }
         }
     }
@@ -382,7 +383,7 @@ public final class HyperCapsuleModule extends XposedModule {
         public void draw(Canvas canvas) {
             try {
                 CapsuleConfig.Values config = CapsuleConfig.read(preferences);
-                if (config.safeMode || isLocked(root)
+                if (isSafeMode(root, preferences) || isLocked(root)
                         || CapsuleConfig.ORIGINAL.equals(config.material)) {
                     drawOriginal(canvas);
                     return;

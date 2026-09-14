@@ -30,6 +30,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -326,8 +327,16 @@ fun FloatingBottomBar(
         )
     }
 
-    val baseHighlight = rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = -45f)
-    val pillHighlight = rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = 90f)
+    val baseHighlight = if (isBlurEnabled) {
+        rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = -45f)
+    } else {
+        remember { mutableStateOf(iosIndicatorSpecular) }
+    }
+    val pillHighlight = if (isBlurEnabled) {
+        rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = 90f)
+    } else {
+        remember { mutableStateOf(iosIndicatorSpecular) }
+    }
 
     val combinedBackdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
 

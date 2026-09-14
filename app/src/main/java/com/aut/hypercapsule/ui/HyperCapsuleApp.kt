@@ -190,7 +190,6 @@ fun HyperCapsuleApp(preferences: AppPreferences) {
 
                 2 -> if (contentReady || isCurrent) {
                     SettingsPage(
-                        preferences = preferences,
                         bottomContentPadding = bottomContentPadding,
                         onHaptic = ::performHaptic,
                         onOpenTheme = {

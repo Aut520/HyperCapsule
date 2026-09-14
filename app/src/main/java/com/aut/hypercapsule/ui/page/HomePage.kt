@@ -1,5 +1,6 @@
 package com.aut.hypercapsule.ui.page
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -103,7 +104,7 @@ private fun StatusGrid(
                 )
                 StatCard(
                     title = stringResource(R.string.api_level),
-                    value = "102",
+                    value = if (status.apiVersion > 0) status.apiVersion.toString() else "102",
                     modifier = Modifier.weight(1f).height(112.dp),
                 )
             }
@@ -127,7 +128,7 @@ private fun StatusGrid(
                     )
                     StatCard(
                         title = stringResource(R.string.api_level),
-                        value = "102",
+                        value = if (status.apiVersion > 0) status.apiVersion.toString() else "102",
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -139,10 +140,21 @@ private fun StatusGrid(
 @Composable
 private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
     val active = status.active && status.platformSupported
+    val dark = isSystemInDarkTheme()
     // Explicit soft status colors — Monet/primaryContainer can be a saturated
     // blue that kills contrast for the title and version line.
-    val accentColor = if (active) StatusActiveInk else StatusInactiveInk
-    val backgroundColor = if (active) StatusActiveBg else StatusInactiveBg
+    val accentColor = when {
+        active && dark -> Color(0xFF9ADBB4)
+        active -> Color(0xFF0F3D24)
+        dark -> Color(0xFFFFB4AB)
+        else -> Color(0xFF5C1812)
+    }
+    val backgroundColor = when {
+        active && dark -> Color(0xFF1B3B2A)
+        active -> Color(0xFFCDEFD8)
+        dark -> Color(0xFF4A201C)
+        else -> Color(0xFFF8D4D0)
+    }
     val icon: ImageVector = if (active) MiuixIcons.Ok else MiuixIcons.Close
 
     Card(
@@ -184,10 +196,7 @@ private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
 }
 
 // Soft mint / rose status surfaces with high-contrast ink for both themes.
-private val StatusActiveBg = Color(0xFFCDEFD8)
-private val StatusActiveInk = Color(0xFF0F3D24)
-private val StatusInactiveBg = Color(0xFFF8D4D0)
-private val StatusInactiveInk = Color(0xFF5C1812)
+// Dark-mode variants live inline in StatusCard.
 
 @Composable
 private fun StatCard(

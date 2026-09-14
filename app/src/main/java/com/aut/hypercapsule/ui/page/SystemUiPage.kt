@@ -1,5 +1,6 @@
 package com.aut.hypercapsule.ui.page
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.aut.hypercapsule.CapsuleConfig
@@ -16,6 +18,7 @@ import com.aut.hypercapsule.R
 import com.aut.hypercapsule.ui.AppPreferences
 import com.aut.hypercapsule.ui.component.DetailPage
 import com.aut.hypercapsule.ui.component.SectionLabel
+import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Slider
@@ -249,10 +252,10 @@ fun SystemUiPage(
                     style = MiuixTheme.textStyles.body2,
                 )
                 Slider(
-                    value = preferences.globalOffsetX,
+                    value = preferences.globalOffsetX.coerceIn(-200f, 200f),
                     onValueChange = preferences::updateGlobalOffsetX,
-                    valueRange = -48f..48f,
-                    steps = 23,
+                    valueRange = -200f..200f,
+                    steps = 39,
                     modifier = Modifier.padding(horizontal = 18.dp),
                 )
                 Text(
@@ -261,10 +264,10 @@ fun SystemUiPage(
                     style = MiuixTheme.textStyles.body2,
                 )
                 Slider(
-                    value = preferences.globalOffsetY,
+                    value = preferences.globalOffsetY.coerceIn(-200f, 200f),
                     onValueChange = preferences::updateGlobalOffsetY,
-                    valueRange = -24f..24f,
-                    steps = 23,
+                    valueRange = -200f..200f,
+                    steps = 39,
                     modifier = Modifier.padding(horizontal = 18.dp),
                 )
             }
@@ -299,10 +302,10 @@ fun SystemUiPage(
                             style = MiuixTheme.textStyles.body2,
                         )
                         Slider(
-                            value = preferences.leftOffsetX,
+                            value = preferences.leftOffsetX.coerceIn(-200f, 200f),
                             onValueChange = preferences::updateLeftOffsetX,
-                            valueRange = -48f..48f,
-                            steps = 23,
+                            valueRange = -200f..200f,
+                            steps = 39,
                             modifier = Modifier.padding(horizontal = 18.dp),
                         )
                         Text(
@@ -311,10 +314,10 @@ fun SystemUiPage(
                             style = MiuixTheme.textStyles.body2,
                         )
                         Slider(
-                            value = preferences.leftOffsetY,
+                            value = preferences.leftOffsetY.coerceIn(-200f, 200f),
                             onValueChange = preferences::updateLeftOffsetY,
-                            valueRange = -24f..24f,
-                            steps = 23,
+                            valueRange = -200f..200f,
+                            steps = 39,
                             modifier = Modifier.padding(horizontal = 18.dp),
                         )
                         Text(
@@ -386,10 +389,10 @@ fun SystemUiPage(
                             style = MiuixTheme.textStyles.body2,
                         )
                         Slider(
-                            value = preferences.rightOffsetX,
+                            value = preferences.rightOffsetX.coerceIn(-200f, 200f),
                             onValueChange = preferences::updateRightOffsetX,
-                            valueRange = -48f..48f,
-                            steps = 23,
+                            valueRange = -200f..200f,
+                            steps = 39,
                             modifier = Modifier.padding(horizontal = 18.dp),
                         )
                         Text(
@@ -398,10 +401,10 @@ fun SystemUiPage(
                             style = MiuixTheme.textStyles.body2,
                         )
                         Slider(
-                            value = preferences.rightOffsetY,
+                            value = preferences.rightOffsetY.coerceIn(-200f, 200f),
                             onValueChange = preferences::updateRightOffsetY,
-                            valueRange = -24f..24f,
-                            steps = 23,
+                            valueRange = -200f..200f,
+                            steps = 39,
                             modifier = Modifier.padding(horizontal = 18.dp),
                         )
                         Text(
@@ -468,14 +471,12 @@ fun SystemUiPage(
                     onCheckedChange = { onHaptic(); preferences.updateLandscape(it) },
                     title = stringResource(R.string.landscape_support),
                     summary = stringResource(R.string.landscape_support_summary),
-                    enabled = preferences.transientCapsuleEnabled,
                 )
                 PreferenceSwitch(
                     checked = preferences.portraitEnabled,
                     onCheckedChange = { onHaptic(); preferences.updatePortrait(it) },
                     title = stringResource(R.string.portrait_support),
                     summary = stringResource(R.string.portrait_support_summary),
-                    enabled = preferences.transientCapsuleEnabled,
                 )
             }
         }
@@ -529,11 +530,13 @@ fun SystemUiPage(
                     style = MiuixTheme.textStyles.body2,
                 )
                 if (preferences.hookSafeMode) {
-                    SwitchPreference(
-                        checked = false,
-                        onCheckedChange = { preferences.confirmSafeModeRestore() },
+                    BasicComponent(
                         title = stringResource(R.string.confirm_hook_restore),
                         summary = stringResource(R.string.confirm_hook_restore_summary),
+                        onClick = {
+                            onHaptic()
+                            preferences.confirmSafeModeRestore()
+                        },
                     )
                 }
             }
@@ -542,14 +545,19 @@ fun SystemUiPage(
         // ── ⑦ 重置胶囊参数 ──
         item {
             Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                SwitchPreference(
-                    checked = false,
-                    onCheckedChange = {
-                        onHaptic()
-                        preferences.resetCapsule()
-                    },
+                val resetContext = LocalContext.current
+                BasicComponent(
                     title = stringResource(R.string.reset_capsule),
                     summary = stringResource(R.string.reset_capsule_summary),
+                    onClick = {
+                        onHaptic()
+                        preferences.resetCapsule()
+                        Toast.makeText(
+                            resetContext,
+                            R.string.capsule_reset_done,
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    },
                 )
             }
         }

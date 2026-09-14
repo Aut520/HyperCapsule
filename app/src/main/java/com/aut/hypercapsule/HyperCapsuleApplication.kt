@@ -35,18 +35,23 @@ object RemotePreferencesBridge {
     fun initialize(value: android.content.Context) { context = value.applicationContext }
     fun attach(service: XposedService) {
         runCatching {
-            preferences = service.getRemotePreferences(com.aut.hypercapsule.ui.AppPreferences.FILE_NAME)
-            val local = context?.getSharedPreferences(com.aut.hypercapsule.ui.AppPreferences.FILE_NAME, android.content.Context.MODE_PRIVATE)
+            preferences = service.getRemotePreferences(CapsuleConfig.PREFS)
+            val local = context?.getSharedPreferences(CapsuleConfig.PREFS, android.content.Context.MODE_PRIVATE)
             val remote = preferences ?: return@runCatching
             local?.all?.forEach { (key, value) ->
                 when (value) {
                     is Boolean -> remote.edit()?.putBoolean(key, value)?.apply()
                     is Int -> remote.edit()?.putInt(key, value)?.apply()
                     is Float -> remote.edit()?.putFloat(key, value)?.apply()
+                    is Long -> remote.edit()?.putLong(key, value)?.apply()
                     is String -> remote.edit()?.putString(key, value)?.apply()
                 }
             }
         }
+    }
+
+    fun detach() {
+        preferences = null
     }
     fun putBoolean(key: String, value: Boolean) {
         runCatching { preferences?.edit()?.putBoolean(key, value)?.apply() }
@@ -85,6 +90,7 @@ class HyperCapsuleApplication : Application(), XposedServiceHelper.OnServiceList
     }
 
     override fun onServiceDied(service: XposedService) {
+        RemotePreferencesBridge.detach()
         mainHandler.post { ModuleStatusStore.update(ModuleStatus()) }
     }
 }

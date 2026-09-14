@@ -118,7 +118,7 @@ fun DetailPage(
                 .padding(horizontal = 12.dp),
             contentPadding = PaddingValues(
                 top = innerPadding.calculateTopPadding() + 8.dp,
-                bottom = 32.dp,
+                bottom = innerPadding.calculateBottomPadding() + 32.dp,
             ),
             overscrollEffect = null,
             content = content,

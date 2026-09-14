@@ -29,7 +29,7 @@ public final class SafeModeProvider extends ContentProvider {
     public static final String KEY_RESTORE_PENDING = "hook_restore_pending";
 
     private static final String SYSTEM_UI_PACKAGE = "com.android.systemui";
-    private static final String PREFS = "hypercapsule_settings";
+    private static final String PREFS = CapsuleConfig.PREFS;
     private static final Object LOCK = new Object();
 
     @Override public boolean onCreate() {

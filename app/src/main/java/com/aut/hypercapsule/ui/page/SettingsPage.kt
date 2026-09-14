@@ -8,7 +8,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.aut.hypercapsule.R
-import com.aut.hypercapsule.ui.AppPreferences
 import com.aut.hypercapsule.ui.component.RootPage
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
@@ -19,7 +18,6 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun SettingsPage(
-    preferences: AppPreferences,
     bottomContentPadding: Dp,
     onHaptic: () -> Unit,
     onOpenTheme: () -> Unit,

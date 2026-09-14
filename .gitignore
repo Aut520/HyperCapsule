@@ -16,6 +16,10 @@
 !gradle/
 !gradle/**
 
+# CI workflows are part of the repo (whitelist overrides the leading *).
+!.github/
+!.github/**
+
 # Application build configuration and source/resource trees.
 !app/
 !app/build.gradle.kts

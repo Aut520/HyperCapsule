@@ -36,6 +36,11 @@ jobs:
           printf '%s' "$APP_SIG_SERCET" | base64 -d > "$RUNNER_TEMP/release.jks"
           ls -l "$RUNNER_TEMP/release.jks"
 
+      - name: Unit tests
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testDebugUnitTest --no-daemon
+
       - name: Build release APK
         env:
           HC_KEYSTORE: ${{ runner.temp }}/release.jks
