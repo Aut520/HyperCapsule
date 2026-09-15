@@ -685,13 +685,20 @@ public final class HyperCapsuleModule extends XposedModule {
             invalidateSelf();
         }
 
+        @Override public int getAlpha() {
+            return alpha;
+        }
+
         @Override public void setColorFilter(ColorFilter filter) {
             fill.setColorFilter(filter);
             outline.setColorFilter(filter);
             invalidateSelf();
         }
 
-        @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
+        /** Drawable#getOpacity is deprecated on newer SDKs; still required for older hosts. */
+        @Override
+        @SuppressWarnings("deprecation")
+        public int getOpacity() { return PixelFormat.TRANSLUCENT; }
     }
 
     /** Reflection wrapper for Android's hidden BackgroundBlurDrawable API. */
