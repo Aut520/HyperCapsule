@@ -6,10 +6,12 @@ HyperOS 沉浸式状态栏双胶囊 LSPosed 模块。
 
 ## 要求
 
-- Android 15 / HyperOS 2，或 Android 17 / HyperOS 4
+- HyperOS 1–4（Android 14–17）
 - LSPosed（libxposed API 102）
 - 作用域：`com.android.systemui`
 - 可选：Root（用于快速重启系统界面）
+
+> 隐藏超级岛仅在 HyperOS 3–4 上可用；状态栏双胶囊支持 OS1–OS4。
 
 ## 构建
 

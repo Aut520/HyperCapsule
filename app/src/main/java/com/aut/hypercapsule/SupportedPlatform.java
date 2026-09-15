@@ -8,11 +8,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.TimeUnit;
 
-/** Strict compatibility gate for the two statically analysed SystemUI samples. */
+/**
+ * Compatibility gate for HyperOS 1–4 samples used by the capsule hook.
+ * Capsule entry (BarTransitions.applyModeBackground) exists on OS1–OS4;
+ * Super Island hide is OS3+ only (class presence is checked separately).
+ */
 public final class SupportedPlatform {
+    public static final int ANDROID_14_SDK = 34;
     public static final int ANDROID_15_SDK = 35;
+    public static final int ANDROID_16_SDK = 36;
     public static final int ANDROID_17_SDK = 37;
+    public static final int HYPER_OS_1 = 1;
     public static final int HYPER_OS_2 = 2;
+    public static final int HYPER_OS_3 = 3;
     public static final int HYPER_OS_4 = 4;
 
     private static final Pattern MAJOR = Pattern.compile("(?:OS|HyperOS)?\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
@@ -24,8 +32,19 @@ public final class SupportedPlatform {
     }
 
     public static boolean isSupported(int sdk, int os) {
-        return (sdk == ANDROID_15_SDK && os == HYPER_OS_2)
-                || (sdk == ANDROID_17_SDK && os == HYPER_OS_4);
+        if (sdk < ANDROID_14_SDK || sdk > ANDROID_17_SDK) {
+            return false;
+        }
+        return os >= HYPER_OS_1 && os <= HYPER_OS_4;
+    }
+
+    /** Super Island hide controller only ships on HyperOS 3+. */
+    public static boolean supportsIslandHook(int sdk, int os) {
+        return isSupported(sdk, os) && os >= HYPER_OS_3;
+    }
+
+    public static boolean supportsIslandHook() {
+        return supportsIslandHook(Build.VERSION.SDK_INT, hyperOsMajor());
     }
 
     public static boolean isSupported(Context context) {

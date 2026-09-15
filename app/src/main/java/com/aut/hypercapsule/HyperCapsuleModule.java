@@ -71,9 +71,12 @@ public final class HyperCapsuleModule extends XposedModule {
             return;
         }
         try {
-            String className = Build.VERSION.SDK_INT == SupportedPlatform.ANDROID_15_SDK
-                    ? A15_TRANSITIONS : A17_TRANSITIONS;
-            Class<?> transitions = Class.forName(className, false, param.getClassLoader());
+            Class<?> transitions = resolveTransitionsClass(param.getClassLoader());
+            if (transitions == null) {
+                log(Log.ERROR, TAG, "BarTransitions not found for "
+                        + SupportedPlatform.platformLabel());
+                return;
+            }
             Method applyMode = transitions.getDeclaredMethod(
                     "applyModeBackground", int.class, boolean.class);
             applyMode.setAccessible(true);
@@ -93,10 +96,29 @@ public final class HyperCapsuleModule extends XposedModule {
             installApplicationContextHook(param.getClassLoader());
             installLandscapeIslandHook(param.getClassLoader());
             installCrashGuard();
-            log(Log.INFO, TAG, "Installed " + className + ".applyModeBackground");
+            log(Log.INFO, TAG, "Installed " + transitions.getName() + ".applyModeBackground");
         } catch (Throwable error) {
             log(Log.ERROR, TAG, "SystemUI hook installation failed", error);
         }
+    }
+
+    /**
+     * OS1/OS2 keep BarTransitions under statusbar.phone; OS3/OS4 moved it to
+     * shared.statusbar.phone. Prefer the SDK hint, then try the other package.
+     */
+    private static Class<?> resolveTransitionsClass(ClassLoader loader) {
+        boolean preferShared = Build.VERSION.SDK_INT >= SupportedPlatform.ANDROID_16_SDK;
+        String[] order = preferShared
+                ? new String[] { A17_TRANSITIONS, A15_TRANSITIONS }
+                : new String[] { A15_TRANSITIONS, A17_TRANSITIONS };
+        for (String name : order) {
+            try {
+                return Class.forName(name, false, loader);
+            } catch (ClassNotFoundException ignored) {
+                // try next package
+            }
+        }
+        return null;
     }
 
     private void installApplicationContextHook(ClassLoader loader) {
@@ -128,15 +150,27 @@ public final class HyperCapsuleModule extends XposedModule {
     }
 
     private void installLandscapeIslandHook(ClassLoader loader) {
-        if (islandHookInstalled || Build.VERSION.SDK_INT != SupportedPlatform.ANDROID_17_SDK) {
+        if (islandHookInstalled || !SupportedPlatform.supportsIslandHook()) {
             return;
         }
         try {
             Class<?> controller = Class.forName(A17_ISLAND_CONTROLLER, false, loader);
-            Method callback = controller.getDeclaredMethod(
-                    "onIslandCountChanged", String.class, int.class, boolean.class);
-            callback.setAccessible(true);
-            hook(callback)
+            // OS3 (A16): (boolean added, int count, String id)
+            // OS4 (A17): (String id, int count, boolean added)
+            Method callback = null;
+            boolean boolFirst = false;
+            try {
+                callback = controller.getDeclaredMethod(
+                        "onIslandCountChanged", boolean.class, int.class, String.class);
+                boolFirst = true;
+            } catch (NoSuchMethodException ignored) {
+                callback = controller.getDeclaredMethod(
+                        "onIslandCountChanged", String.class, int.class, boolean.class);
+            }
+            final Method target = callback;
+            final boolean arg0IsAdded = boolFirst;
+            target.setAccessible(true);
+            hook(target)
                     .setId("hypercapsule.hideLandscapeIsland")
                     .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
                     .intercept(chain -> {
@@ -144,15 +178,15 @@ public final class HyperCapsuleModule extends XposedModule {
                         if (preferences.getBoolean(CapsuleConfig.HIDE_ISLAND, false)
                                 && isLandscape()) {
                             Object[] args = chain.getArgs().toArray();
-                            args[2] = false;
+                            args[arg0IsAdded ? 0 : 2] = false;
                             return chain.proceed(args);
                         }
                         return chain.proceed();
                     });
             islandHookInstalled = true;
-            log(Log.INFO, TAG, "Installed Android 17 landscape island hook");
+            log(Log.INFO, TAG, "Installed island hook " + target);
         } catch (ClassNotFoundException ignored) {
-            log(Log.INFO, TAG, "Android 15/other sample has no island controller");
+            log(Log.INFO, TAG, "No island controller on this build");
         } catch (Throwable error) {
             log(Log.WARN, TAG, "Landscape island hook unavailable", error);
         }
