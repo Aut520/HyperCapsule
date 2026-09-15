@@ -147,34 +147,11 @@ private fun AboutHero(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        val logoShape = RoundedCornerShape(28.dp)
-        Box(
-            modifier = Modifier
-                .size(108.dp)
-                .then(
-                    if (blurActive) {
-                        Modifier.textureBlur(
-                            backdrop = backdrop,
-                            shape = logoShape,
-                            blurRadius = 46f,
-                            colors = glassColors(alpha = 0.36f),
-                        )
-                    } else {
-                        Modifier.background(
-                            MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.68f),
-                            logoShape,
-                        )
-                    },
-                )
-                .clip(logoShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(
-                painter = painterResource(R.drawable.ic_capsule_logo),
-                contentDescription = stringResource(R.string.app_icon_description),
-                modifier = Modifier.size(92.dp),
-            )
-        }
+        Image(
+            painter = painterResource(R.drawable.ic_capsule_logo),
+            contentDescription = stringResource(R.string.app_icon_description),
+            modifier = Modifier.size(96.dp),
+        )
         Text(
             text = stringResource(R.string.app_name),
             modifier = Modifier.padding(top = 18.dp),

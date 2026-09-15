@@ -141,19 +141,19 @@ private fun StatusGrid(
 private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
     val active = status.active && status.platformSupported
     val dark = isSystemInDarkTheme()
-    // Explicit soft status colors — Monet/primaryContainer can be a saturated
-    // blue that kills contrast for the title and version line.
+    // Light mode: match page white/surface tone; status only in accent text.
+    // Dark mode: keep soft tinted surfaces (mint/rose).
     val accentColor = when {
         active && dark -> Color(0xFF9ADBB4)
-        active -> Color(0xFF0F3D24)
+        active -> MiuixTheme.colorScheme.primary
         dark -> Color(0xFFFFB4AB)
-        else -> Color(0xFF5C1812)
+        else -> Color(0xFFB3261E)
     }
     val backgroundColor = when {
         active && dark -> Color(0xFF1B3B2A)
-        active -> Color(0xFFCDEFD8)
+        active -> MiuixTheme.colorScheme.surface
         dark -> Color(0xFF4A201C)
-        else -> Color(0xFFF8D4D0)
+        else -> MiuixTheme.colorScheme.surface
     }
     val icon: ImageVector = if (active) MiuixIcons.Ok else MiuixIcons.Close
 
@@ -172,7 +172,7 @@ private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
                     .align(Alignment.BottomEnd)
                     .offset(27.dp, 31.dp)
                     .size(110.dp),
-                tint = accentColor.copy(alpha = 0.28f),
+                tint = accentColor.copy(alpha = if (dark) 0.28f else 0.12f),
             )
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -186,7 +186,8 @@ private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
                 Text(
                     text = stringResource(R.string.software_version, BuildConfig.VERSION_NAME),
                     modifier = Modifier.padding(top = 2.dp),
-                    color = accentColor.copy(alpha = 0.72f),
+                    color = if (dark) accentColor.copy(alpha = 0.72f)
+                    else MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.Medium,
                 )
