@@ -26,8 +26,8 @@ android {
         applicationId = "com.aut.hypercapsule"
         minSdk = 34
         targetSdk = 37
-        versionCode = 15
-        versionName = "1.0.5"
+        versionCode = 16
+        versionName = "1.0.6"
     }
 
     signingConfigs {

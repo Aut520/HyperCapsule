@@ -1,5 +1,6 @@
 package com.aut.hypercapsule.ui.page
 
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -140,20 +141,21 @@ private fun StatusGrid(
 @Composable
 private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
     val active = status.active && status.platformSupported
-    val dark = isSystemInDarkTheme()
-    // Light mode: match page white/surface tone; status only in accent text.
-    // Dark mode: keep soft tinted surfaces (mint/rose).
+    val colorScheme = MiuixTheme.colorScheme
+    // Follow the applied Miuix theme (not system dark), so Theme page
+    // forced light/dark and light/dark cards stay in sync.
+    val dark = colorScheme.surface.luminance() < 0.5f
     val accentColor = when {
         active && dark -> Color(0xFF9ADBB4)
-        active -> MiuixTheme.colorScheme.primary
+        active -> colorScheme.primary
         dark -> Color(0xFFFFB4AB)
-        else -> Color(0xFFB3261E)
+        else -> colorScheme.error
     }
     val backgroundColor = when {
         active && dark -> Color(0xFF1B3B2A)
-        active -> MiuixTheme.colorScheme.surface
+        active -> colorScheme.surface
         dark -> Color(0xFF4A201C)
-        else -> MiuixTheme.colorScheme.surface
+        else -> colorScheme.surface
     }
     val icon: ImageVector = if (active) MiuixIcons.Ok else MiuixIcons.Close
 
@@ -187,7 +189,7 @@ private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
                     text = stringResource(R.string.software_version, BuildConfig.VERSION_NAME),
                     modifier = Modifier.padding(top = 2.dp),
                     color = if (dark) accentColor.copy(alpha = 0.72f)
-                    else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    else colorScheme.onSurfaceVariantSummary,
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.Medium,
                 )
