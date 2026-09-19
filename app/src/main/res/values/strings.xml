@@ -56,7 +56,7 @@
     <string name="regular_status_bar">普通状态栏胶囊</string>
     <string name="regular_status_bar_summary">非全屏状态栏也使用胶囊，默认保持系统原样</string>
     <string name="hide_landscape_island">关闭横屏灵动岛</string>
-    <string name="hide_landscape_island_summary">横屏时隐藏 HyperOS 灵动岛内容</string>
+    <string name="hide_landscape_island_summary">仅在开关打开且处于横屏全屏时隐藏 HyperOS 灵动岛；竖屏、竖屏全屏及横屏非全屏保持系统默认</string>
     <string name="include_privacy_indicator">包含隐私指示器</string>
     <string name="include_privacy_indicator_summary">将摄像头和麦克风提示纳入右侧胶囊</string>
     <string name="group_visual_behavior">视觉与动效</string>

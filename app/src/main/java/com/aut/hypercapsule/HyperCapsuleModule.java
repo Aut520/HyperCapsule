@@ -17,13 +17,17 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 import io.github.libxposed.api.XposedInterface;
@@ -44,10 +48,30 @@ public final class HyperCapsuleModule extends XposedModule {
     /** HyperIsland plugin queries SystemUI through this controller (OS3/OS4). */
     private static final String DYNAMIC_ISLAND_CONTROLLER =
             "com.android.systemui.statusbar.notification.DynamicIslandController";
+    /**
+     * Island UI lives in the SystemUI plugin package (miui.systemui.plugin), not under
+     * the status-bar View tree. Class names taken from HyperIsland OS3/OS4 hooks.
+     */
+    private static final String ISLAND_WINDOW_VIEW_CONTROLLER =
+            "miui.systemui.dynamicisland.window.DynamicIslandWindowViewController";
+    private static final String ISLAND_WINDOW_VIEW =
+            "miui.systemui.dynamicisland.window.DynamicIslandWindowView";
+    private static final String ISLAND_CONTENT_VIEW =
+            "miui.systemui.dynamicisland.window.content.DynamicIslandContentView";
+    private static final String ISLAND_BASE_CONTENT_VIEW =
+            "miui.systemui.dynamicisland.window.content.DynamicIslandBaseContentView";
+    private static final String PLUGIN_FACTORY =
+            "com.android.systemui.shared.plugins.PluginInstance$PluginFactory";
+    private static final String FOCUS_NOTIFICATION_CONTROLLER =
+            "miui.systemui.notification.focus.FocusNotificationController";
     private static final String ACTION_BACK_REQUEST_IMMERSIVE_MODE =
             "action_back_request_immersive_mode";
+    private static final String ACTION_BACK_ADD_ISLAND = "action_back_add_island";
+    private static final String ACTION_REMOVE_ISLAND = "action_remove_island";
+    private static final String ACTION_REQUEST_HAS_ISLAND = "action_request_has_island";
     private static final String EXTRA_BACK_REQUEST_IMMERSIVE_MODE =
             "extra_back_request_immersive_mode";
+    private static final String EXTRA_HAS_ISLAND = "extra_has_island";
 
     private static final Object LOCK = new Object();
     private static final Map<View, Drawable> ORIGINALS = new WeakHashMap<>();
@@ -55,15 +79,50 @@ public final class HyperCapsuleModule extends XposedModule {
 
     private static boolean transitionHookInstalled;
     private static boolean applicationHookInstalled;
-    private static boolean islandHookInstalled;
-    private static boolean islandViewHookInstalled;
+    private static boolean islandBootstrapInstalled;
+    private static boolean classLoaderHooksInstalled;
+    private static boolean pluginFactoryHookInstalled;
     private static boolean preferenceListenerInstalled;
     private static Context systemUiContext;
     private static SharedPreferences remotePreferences;
     private static Thread.UncaughtExceptionHandler previousExceptionHandler;
 
+    /** Last observed status bar transition mode; 1 = transient/pull-down. */
+    private static volatile int lastStatusBarMode = -1;
+    /** Cached config for SystemUI hot paths; avoid re-reading remote prefs every frame. */
+    private static volatile CapsuleConfig.Values cachedConfig;
+    private static volatile boolean cachedHideIsland;
+    private static volatile boolean cachedSafeMode;
+    private static volatile long lastSafeModeCheckMs;
+
+    /** Island instances live in the plugin window — track hide entry points, not bar views. */
+    private static final Map<Object, Method> CONTENT_HIDE_METHODS =
+            Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<Object, Method> WINDOW_TEMP_HIDE_METHODS =
+            Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<Object, Method> FOCUS_REMOVE_METHODS =
+            Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Set<Integer> HOOKED_ISLAND_CLASS_LOADERS =
+            Collections.synchronizedSet(new HashSet<>());
+    private static final Set<Integer> HOOKED_ISLAND_METHODS =
+            Collections.synchronizedSet(new HashSet<>());
+
     private static final SharedPreferences.OnSharedPreferenceChangeListener PREFERENCE_LISTENER =
-            (preferences, key) -> refreshAll();
+            (preferences, key) -> {
+                synchronized (LOCK) {
+                    cachedConfig = null;
+                    cachedHideIsland = preferences != null
+                            && preferences.getBoolean(CapsuleConfig.HIDE_ISLAND, false);
+                    cachedSafeMode = preferences != null
+                            && preferences.getBoolean(CapsuleConfig.SAFE_MODE, false);
+                }
+                refreshAll();
+                // Switch turned off (or other pref change): restore island if we hid it.
+                try {
+                    forceShowTrackedIsland();
+                } catch (Throwable ignored) {
+                }
+            };
 
     @Override
     public void onModuleLoaded(ModuleLoadedParam param) {
@@ -103,7 +162,9 @@ public final class HyperCapsuleModule extends XposedModule {
                     });
             transitionHookInstalled = true;
             installApplicationContextHook(param.getClassLoader());
-            installLandscapeIslandHook(param.getClassLoader());
+            installIslandHideHooks(param.getClassLoader());
+            installDynamicClassLoaderHooks(param.getClassLoader());
+            installPluginFactoryHook(param.getClassLoader());
             installCrashGuard();
             log(Log.INFO, TAG, "Installed " + transitions.getName() + ".applyModeBackground");
         } catch (Throwable error) {
@@ -147,6 +208,17 @@ public final class HyperCapsuleModule extends XposedModule {
                                         .getApplicationContext();
                             }
                             installCrashGuard();
+                            // Island plugin may finish loading after Application.onCreate.
+                            try {
+                                ClassLoader cl = chain.getThisObject() != null
+                                        ? chain.getThisObject().getClass().getClassLoader()
+                                        : null;
+                                if (cl != null) {
+                                    installIslandHideHooks(cl);
+                                    installPluginFactoryHook(cl);
+                                }
+                            } catch (Throwable ignored) {
+                            }
                         } catch (Throwable error) {
                             log(Log.WARN, TAG, "Context setup skipped", error);
                         }
@@ -158,107 +230,301 @@ public final class HyperCapsuleModule extends XposedModule {
         }
     }
 
-    private void installLandscapeIslandHook(ClassLoader loader) {
-        if (islandHookInstalled || !SupportedPlatform.supportsIslandHook()) {
+    /**
+     * Island hide anchors (from HyperIsland OS3/OS4), intentionally narrow:
+     * hide only when the user switch is ON and the scene is landscape fullscreen
+     * (or landscape + status-bar pull-down). Portrait / portrait-fullscreen /
+     * landscape-with-regular-bar must stay system default.
+     *
+     * Do NOT force immersive Bundle replies or canEnterAppState=false — HyperIsland
+     * caches those signals and can stop showing islands in every orientation.
+     */
+    private void installIslandHideHooks(ClassLoader loader) {
+        if (!SupportedPlatform.supportsIslandHook()) {
             return;
         }
-        // Primary: HyperIsland asks SystemUI via onIslandViewChanged whether to
-        // treat the bar as immersive (game / landscape). Force immersive=true so
-        // the island pill hides in landscape — same path HyperIsland itself uses.
-        boolean viewHook = installIslandImmersiveHook(loader);
-        // Secondary: status-bar island spacing bookkeeping only.
-        boolean countHook = installIslandCountHook(loader);
-        islandHookInstalled = viewHook || countHook;
+        boolean any = false;
+        any |= installIslandWindowControllerHook(loader);
+        any |= installIslandContentLayoutHook(loader);
+        any |= installIslandWindowTempHideHook(loader);
+        islandBootstrapInstalled |= any;
+        if (any) {
+            log(Log.INFO, TAG, "Island hide hooks ready on loader "
+                    + Integer.toHexString(System.identityHashCode(loader)));
+        }
     }
 
-    private boolean installIslandImmersiveHook(ClassLoader loader) {
-        if (islandViewHookInstalled) return true;
+    /** Watch new ClassLoaders so island plugin classes get hooked after SystemUI starts. */
+    private void installDynamicClassLoaderHooks(ClassLoader loader) {
+        if (classLoaderHooksInstalled) return;
+        String[] loaders = {
+                "dalvik.system.BaseDexClassLoader",
+                "dalvik.system.PathClassLoader",
+                "dalvik.system.DexClassLoader",
+                "dalvik.system.DelegateLastClassLoader",
+        };
+        boolean any = false;
+        for (String name : loaders) {
+            try {
+                Class<?> type = Class.forName(name, false, loader);
+                for (java.lang.reflect.Constructor<?> ctor : type.getDeclaredConstructors()) {
+                    try {
+                        ctor.setAccessible(true);
+                        hook(ctor)
+                                .setId("hypercapsule.classLoader." + name)
+                                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                                .intercept(chain -> {
+                                    Object result = chain.proceed();
+                                    try {
+                                        Object candidate = chain.getThisObject();
+                                        if (candidate instanceof ClassLoader) {
+                                            installIslandHideHooks((ClassLoader) candidate);
+                                        }
+                                    } catch (Throwable ignored) {
+                                    }
+                                    return result;
+                                });
+                        any = true;
+                    } catch (Throwable ignored) {
+                        // some constructors may already be hooked
+                    }
+                }
+            } catch (ClassNotFoundException ignored) {
+                // try next loader type
+            }
+        }
+        classLoaderHooksInstalled = any;
+        if (any) {
+            log(Log.INFO, TAG, "Watching ClassLoaders for island plugin");
+        }
+    }
+
+    private void installPluginFactoryHook(ClassLoader loader) {
+        if (pluginFactoryHookInstalled) return;
         try {
-            Class<?> controller = Class.forName(DYNAMIC_ISLAND_CONTROLLER, false, loader);
-            Method onIslandViewChanged = controller.getDeclaredMethod(
-                    "onIslandViewChanged", Bundle.class);
-            onIslandViewChanged.setAccessible(true);
-            hook(onIslandViewChanged)
-                    .setId("hypercapsule.islandImmersive")
-                    .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-                    .intercept(chain -> {
-                        Object result = chain.proceed();
-                        try {
-                            Object arg0 = chain.getArg(0);
-                            Bundle in = arg0 instanceof Bundle ? (Bundle) arg0 : null;
-                            Bundle out = result instanceof Bundle ? (Bundle) result : null;
-                            String action = in != null ? in.getString("action_key") : null;
-                            boolean immersiveQuery =
-                                    ACTION_BACK_REQUEST_IMMERSIVE_MODE.equals(action);
-                            if (!immersiveQuery) {
-                                return result;
-                            }
-                            SharedPreferences preferences = preferences();
-                            if (preferences != null
-                                    && preferences.getBoolean(CapsuleConfig.HIDE_ISLAND, false)
-                                    && isLandscape()) {
-                                if (out == null) {
-                                    out = new Bundle();
+            Class<?> factory = Class.forName(PLUGIN_FACTORY, false, loader);
+            for (Method method : factory.getDeclaredMethods()) {
+                if (!"createPluginContext".equals(method.getName())) continue;
+                method.setAccessible(true);
+                hook(method)
+                        .setId("hypercapsule.pluginFactory")
+                        .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                        .intercept(chain -> {
+                            Object result = chain.proceed();
+                            try {
+                                if (result instanceof Context) {
+                                    ClassLoader pluginCl = ((Context) result).getClassLoader();
+                                    if (pluginCl != null) {
+                                        installIslandHideHooks(pluginCl);
+                                    }
                                 }
-                                out.putBoolean(EXTRA_BACK_REQUEST_IMMERSIVE_MODE, true);
-                                return out;
+                            } catch (Throwable ignored) {
                             }
-                        } catch (Throwable error) {
-                            log(Log.WARN, TAG, "Island immersive override skipped", error);
-                        }
-                        return result;
-                    });
-            islandViewHookInstalled = true;
-            log(Log.INFO, TAG, "Installed DynamicIslandController.onIslandViewChanged");
-            return true;
-        } catch (ClassNotFoundException | NoSuchMethodException ignored) {
-            log(Log.INFO, TAG, "DynamicIslandController.onIslandViewChanged missing");
+                            return result;
+                        });
+                pluginFactoryHookInstalled = true;
+                log(Log.INFO, TAG, "Waiting for island plugin ClassLoader via PluginFactory");
+            }
+        } catch (ClassNotFoundException ignored) {
+            // Plugin factory may not exist on every build.
+        } catch (Throwable error) {
+            log(Log.WARN, TAG, "PluginFactory hook unavailable", error);
+        }
+    }
+
+    private boolean installIslandWindowControllerHook(ClassLoader loader) {
+        try {
+            Class<?> controller = Class.forName(ISLAND_WINDOW_VIEW_CONTROLLER, false, loader);
+            boolean hooked = false;
+            for (Method method : controller.getDeclaredMethods()) {
+                // Only statusBarAppearance — system's own "bar showing → temp-hide island".
+                // Do not touch canEnterAppState / lockScreen / panel height: they break
+                // island recovery in portrait when mis-applied.
+                if (!"statusBarAppearance".equals(method.getName())) continue;
+                Class<?>[] params = method.getParameterTypes();
+                if (params.length != 1 || params[0] != boolean.class) continue;
+                int key = System.identityHashCode(method) ^ method.getName().hashCode();
+                if (!HOOKED_ISLAND_METHODS.add(key)) continue;
+                method.setAccessible(true);
+                hook(method)
+                        .setId("hypercapsule.island.statusBarAppearance")
+                        .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                        .intercept(chain -> {
+                            Object[] args = chain.getArgs().toArray();
+                            if (shouldHideLandscapeIsland()) {
+                                args[0] = true;
+                            }
+                            return chain.proceed(args);
+                        });
+                hooked = true;
+            }
+            if (hooked) {
+                log(Log.INFO, TAG, "Installed "
+                        + ISLAND_WINDOW_VIEW_CONTROLLER + ".statusBarAppearance");
+            }
+            return hooked;
+        } catch (ClassNotFoundException ignored) {
             return false;
         } catch (Throwable error) {
-            log(Log.WARN, TAG, "Island immersive hook unavailable", error);
+            log(Log.WARN, TAG, "Island window controller hook unavailable", error);
             return false;
         }
     }
 
-    private boolean installIslandCountHook(ClassLoader loader) {
-        try {
-            Class<?> controller = Class.forName(A17_ISLAND_CONTROLLER, false, loader);
-            // OS3 (A16): (boolean added, int count, String id)
-            // OS4 (A17): (String id, int count, boolean added)
-            Method callback = null;
-            boolean boolFirst = false;
+    private boolean installIslandContentLayoutHook(ClassLoader loader) {
+        String[] candidates = { ISLAND_CONTENT_VIEW, ISLAND_BASE_CONTENT_VIEW };
+        boolean hookedAny = false;
+        for (String className : candidates) {
             try {
-                callback = controller.getDeclaredMethod(
-                        "onIslandCountChanged", boolean.class, int.class, String.class);
-                boolFirst = true;
-            } catch (NoSuchMethodException ignored) {
-                callback = controller.getDeclaredMethod(
-                        "onIslandCountChanged", String.class, int.class, boolean.class);
+                Class<?> contentView = Class.forName(className, false, loader);
+                Method show = null;
+                Method hide = null;
+                for (Method method : contentView.getDeclaredMethods()) {
+                    if (method.getParameterCount() != 0) continue;
+                    if ("showIslandLayout".equals(method.getName())) show = method;
+                    if ("hideIslandLayout".equals(method.getName())) hide = method;
+                }
+                if (show == null && hide == null) continue;
+                final Method hideMethod = hide;
+                if (show != null) {
+                    show.setAccessible(true);
+                    int key = System.identityHashCode(show);
+                    if (HOOKED_ISLAND_METHODS.add(key)) {
+                        hook(show)
+                                .setId("hypercapsule.island.showIslandLayout")
+                                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                                .intercept(chain -> {
+                                    Object target = chain.getThisObject();
+                                    if (target != null && hideMethod != null) {
+                                        CONTENT_HIDE_METHODS.put(target, hideMethod);
+                                    }
+                                    // Only skip show in the narrow hide scene.
+                                    if (shouldHideLandscapeIsland()) {
+                                        invokeNoArg(target, hideMethod);
+                                        return null;
+                                    }
+                                    return chain.proceed();
+                                });
+                        hookedAny = true;
+                    }
+                }
+                if (hide != null) {
+                    hide.setAccessible(true);
+                    hide.setAccessible(true);
+                    final Method hideRef = hide;
+                    hook(hideRef)
+                            .setId("hypercapsule.island.hideIslandLayout")
+                            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                            .intercept(chain -> {
+                                Object target = chain.getThisObject();
+                                if (target != null && hideRef != null) {
+                                    CONTENT_HIDE_METHODS.put(target, hideRef);
+                                }
+                                return chain.proceed();
+                            });
+                    hookedAny = true;
+                }
+                if (hookedAny) {
+                    log(Log.INFO, TAG, "Installed island layout hooks on " + className);
+                }
+            } catch (ClassNotFoundException ignored) {
+                // try next class
+            } catch (Throwable error) {
+                log(Log.WARN, TAG, "Island layout hook failed for " + className, error);
             }
-            final Method target = callback;
-            final boolean arg0IsAdded = boolFirst;
-            target.setAccessible(true);
-            hook(target)
-                    .setId("hypercapsule.hideLandscapeIsland")
-                    .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-                    .intercept(chain -> {
-                        SharedPreferences preferences = preferences();
-                        if (preferences.getBoolean(CapsuleConfig.HIDE_ISLAND, false)
-                                && isLandscape()) {
+        }
+        return hookedAny;
+    }
+
+    private boolean installIslandWindowTempHideHook(ClassLoader loader) {
+        try {
+            Class<?> windowView = Class.forName(ISLAND_WINDOW_VIEW, false, loader);
+            boolean hooked = false;
+            for (Method method : windowView.getDeclaredMethods()) {
+                if (!"onIslandTempHide".equals(method.getName())) continue;
+                Class<?>[] params = method.getParameterTypes();
+                if (params.length < 1 || params[0] != boolean.class) continue;
+                method.setAccessible(true);
+                int key = System.identityHashCode(method);
+                if (!HOOKED_ISLAND_METHODS.add(key)) continue;
+                final Method target = method;
+                hook(target)
+                        .setId("hypercapsule.island.onIslandTempHide")
+                        .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                        .intercept(chain -> {
+                            Object receiver = chain.getThisObject();
+                            if (receiver != null) {
+                                WINDOW_TEMP_HIDE_METHODS.put(receiver, target);
+                            }
                             Object[] args = chain.getArgs().toArray();
-                            args[arg0IsAdded ? 0 : 2] = false;
+                            if (shouldHideLandscapeIsland()) {
+                                args[0] = true;
+                            }
+                            // When hide scene ends, allow (and prefer) un-hide.
                             return chain.proceed(args);
-                        }
-                        return chain.proceed();
-                    });
-            log(Log.INFO, TAG, "Installed island count hook " + target);
-            return true;
+                        });
+                hooked = true;
+            }
+            if (hooked) {
+                log(Log.INFO, TAG, "Installed " + ISLAND_WINDOW_VIEW + ".onIslandTempHide");
+            }
+            return hooked;
         } catch (ClassNotFoundException ignored) {
-            log(Log.INFO, TAG, "No island controller on this build");
             return false;
         } catch (Throwable error) {
-            log(Log.WARN, TAG, "Landscape island count hook unavailable", error);
+            log(Log.WARN, TAG, "Island window temp-hide hook unavailable", error);
             return false;
+        }
+    }
+
+    private static Object invokeNoArg(Object target, Method method) {
+        if (target == null || method == null) return null;
+        try {
+            method.setAccessible(true);
+            return method.invoke(target);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    /** Push SystemUI's own temp-hide path onto tracked island instances. */
+    private static void forceHideTrackedIsland() {
+        if (!shouldHideLandscapeIsland()) return;
+        invokeTrackedIslandTempHide(true);
+    }
+
+    /**
+     * Recover from an over-hide: once the hide scene ends (portrait, switch off,
+     * landscape but not fullscreen), ask SystemUI to restore the island window.
+     */
+    private static void forceShowTrackedIsland() {
+        if (shouldHideLandscapeIsland()) return;
+        invokeTrackedIslandTempHide(false);
+    }
+
+    private static void invokeTrackedIslandTempHide(boolean hidden) {
+        try {
+            Map<Object, Method> windows = new java.util.HashMap<>();
+            synchronized (WINDOW_TEMP_HIDE_METHODS) {
+                windows.putAll(WINDOW_TEMP_HIDE_METHODS);
+            }
+            for (Map.Entry<Object, Method> entry : windows.entrySet()) {
+                try {
+                    Method method = entry.getValue();
+                    method.setAccessible(true);
+                    Object[] args = new Object[method.getParameterCount()];
+                    if (args.length > 0) args[0] = hidden;
+                    for (int i = 1; i < args.length; i++) {
+                        Class<?> type = method.getParameterTypes()[i];
+                        if (type == boolean.class) args[i] = false;
+                        else if (type == int.class) args[i] = 0;
+                        else if (type == float.class) args[i] = 0f;
+                    }
+                    method.invoke(entry.getKey(), args);
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
         }
     }
 
@@ -296,12 +562,135 @@ public final class HyperCapsuleModule extends XposedModule {
         systemUiContext = root.getContext().getApplicationContext();
         SharedPreferences preferences = preferences();
         registerPreferenceListener(preferences);
+        if (preferences != null) {
+            cachedHideIsland = preferences.getBoolean(CapsuleConfig.HIDE_ISLAND, false);
+        }
         int mode = (Integer) modeValue;
+        lastStatusBarMode = mode;
         synchronized (LOCK) {
             MODES.put(root, mode);
             captureOriginal(root);
         }
         updateRoot(root, mode, preferences);
+        // Hide only in the narrow landscape-fullscreen scene; otherwise recover.
+        if (shouldHideLandscapeIsland()) {
+            if (isStatusBarVisible()) {
+                forceHideTrackedIsland();
+                forceHideLandscapeIslandViews(root);
+            }
+        } else {
+            forceShowTrackedIsland();
+        }
+    }
+
+    /** True when the status bar is pulled down / visible (esp. transient mode 1). */
+    private static boolean isStatusBarVisible() {
+        int mode = lastStatusBarMode;
+        return mode == 1 || mode == 0 || mode == 4 || mode == 7;
+    }
+
+    /**
+     * Hide only when ALL of:
+     * 1) user switch ON
+     * 2) landscape
+     * 3) landscape-fullscreen scene (immersive policy / bar translucent-hidden / pull-down)
+     * Portrait, portrait-fullscreen, and landscape with a normal bar stay system default.
+     */
+    private static boolean shouldHideLandscapeIsland() {
+        SharedPreferences preferences = remotePreferences;
+        if (preferences != null) {
+            cachedHideIsland = preferences.getBoolean(CapsuleConfig.HIDE_ISLAND, false);
+        }
+        if (!cachedHideIsland) {
+            return false;
+        }
+        if (!isLandscape()) {
+            return false;
+        }
+        return isLandscapeFullscreenScene();
+    }
+
+    private static boolean isLandscapeFullscreenScene() {
+        if (isImmersivePolicy()) {
+            return true;
+        }
+        int mode = lastStatusBarMode;
+        // Landscape + status-bar pull-down over a fullscreen app.
+        if (mode == 1) {
+            return true;
+        }
+        // Translucent / lights-out / hidden bar — typical fullscreen landscape.
+        if (mode != -1 && !isNormalMode(mode)) {
+            return true;
+        }
+        return false;
+    }
+
+    /** HyperIsland uses the same policy_control probe for immersive fullscreen. */
+    private static boolean isImmersivePolicy() {
+        try {
+            Context context = systemUiContext;
+            if (context == null) {
+                return false;
+            }
+            String policy = Settings.Global.getString(
+                    context.getContentResolver(), "policy_control");
+            if (policy == null) {
+                return false;
+            }
+            String value = policy.toLowerCase();
+            return value.contains("immersive.full") || value.contains("immersive.status");
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static CapsuleConfig.Values cachedConfig(SharedPreferences preferences) {
+        CapsuleConfig.Values values = cachedConfig;
+        if (values != null) {
+            return values;
+        }
+        values = CapsuleConfig.read(preferences);
+        cachedConfig = values;
+        return values;
+    }
+
+    /** Hide island-related views under the status bar tree when switch+landscape. */
+    private static void forceHideLandscapeIslandViews(View root) {
+        if (root == null || !shouldHideLandscapeIsland()) {
+            return;
+        }
+        try {
+            hideIslandViewsRecursive(root, 0);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void hideIslandViewsRecursive(View view, int depth) {
+        if (view == null || depth > 16) {
+            return;
+        }
+        try {
+            if (view.getId() != View.NO_ID) {
+                String name = view.getResources().getResourceEntryName(view.getId());
+                if (name != null) {
+                    String lower = name.toLowerCase();
+                    if (lower.contains("island") || lower.contains("dynamic_island")
+                            || lower.contains("ongoing_activity_chip")) {
+                        if (view.getVisibility() == View.VISIBLE) {
+                            view.setVisibility(View.INVISIBLE);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                hideIslandViewsRecursive(group.getChildAt(i), depth + 1);
+            }
+        }
     }
 
     private static void updateRoot(View root, int mode, SharedPreferences preferences) {
@@ -434,10 +823,24 @@ public final class HyperCapsuleModule extends XposedModule {
     }
 
     private static boolean isSafeMode(View root, SharedPreferences preferences) {
-        if (preferences.getBoolean(CapsuleConfig.SAFE_MODE, false)) return true;
+        if (preferences != null
+                && preferences.getBoolean(CapsuleConfig.SAFE_MODE, false)) {
+            return true;
+        }
+        if (cachedSafeMode) {
+            return true;
+        }
+        // ContentProvider IPC can wake the manager app — throttle hard-path checks.
+        long now = SystemClock.uptimeMillis();
+        if (now - lastSafeModeCheckMs < 60_000L) {
+            return false;
+        }
+        lastSafeModeCheckMs = now;
         try {
             android.os.Bundle state = SafeModeProvider.read(root.getContext());
-            return state != null && state.getBoolean(SafeModeProvider.KEY_SAFE_MODE, false);
+            cachedSafeMode = state != null
+                    && state.getBoolean(SafeModeProvider.KEY_SAFE_MODE, false);
+            return cachedSafeMode;
         } catch (Throwable ignored) {
             return false;
         }
@@ -489,8 +892,8 @@ public final class HyperCapsuleModule extends XposedModule {
         @Override
         public void draw(Canvas canvas) {
             try {
-                CapsuleConfig.Values config = CapsuleConfig.read(preferences);
-                if (isSafeMode(root, preferences) || isLocked(root)
+                CapsuleConfig.Values config = cachedConfig(preferences);
+                if (cachedSafeMode || isLocked(root)
                         || CapsuleConfig.ORIGINAL.equals(config.material)) {
                     drawOriginal(canvas);
                     return;

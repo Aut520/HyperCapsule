@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -64,11 +66,77 @@ jobs:
           name: HyperCapsule
           path: HyperCapsule.apk
 
+      - name: Extract release notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: notes
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          NOTES_FILE="$RUNNER_TEMP/release-body.md"
+          {
+            echo "## 更新说明"
+            echo ""
+          } > "$NOTES_FILE"
+
+          extract_section() {
+            tag="$1"
+            file="$2"
+            [ -f "$file" ] || return 1
+            # Prefer "## v1.0.8" / "## [v1.0.8]" headings until the next ## heading.
+            awk -v tag="$tag" '
+              BEGIN { p = 0 }
+              /^##/ {
+                if (p == 1) exit
+                line = $0
+                gsub(/[\[\]*`]/, "", line)
+                if (index(line, tag) > 0) { p = 1; next }
+              }
+              p == 1 { print }
+            ' "$file"
+          }
+
+          SECTION="$(extract_section "$TAG" ".github/CHANGELOG.md")"
+          if [ -z "$SECTION" ] && [ -f "CHANGELOG.md" ]; then
+            SECTION="$(extract_section "$TAG" "CHANGELOG.md")"
+          fi
+          if [ -z "$SECTION" ]; then
+            # Tag annotation message, if present.
+            SECTION="$(git tag -l --format='%(contents)' "$TAG" 2>/dev/null | sed '/^$/d')"
+          fi
+          if [ -z "$SECTION" ]; then
+            SECTION="暂无手工更新说明，详见下方自动提交记录。"
+          fi
+          printf '%s\n' "$SECTION" >> "$NOTES_FILE"
+          {
+            echo ""
+            echo "---"
+            echo ""
+            echo "## 提交记录"
+            echo ""
+          } >> "$NOTES_FILE"
+
+          # Include commit subjects since the previous v* tag when possible.
+          PREV_TAG="$(git tag -l 'v*' --sort=-v:refname | grep -v "^${TAG}$" | head -n1 || true)"
+          if [ -n "$PREV_TAG" ]; then
+            echo "变更自 \`${PREV_TAG}\`：" >> "$NOTES_FILE"
+            echo "" >> "$NOTES_FILE"
+            git log --pretty=format:'- %s (%h)' "${PREV_TAG}..${TAG}" >> "$NOTES_FILE" || true
+            echo "" >> "$NOTES_FILE"
+          else
+            git log --pretty=format:'- %s (%h)' -n 30 "$TAG" >> "$NOTES_FILE" || true
+            echo "" >> "$NOTES_FILE"
+          fi
+
+          echo "Prepared release body at $NOTES_FILE"
+          cat "$NOTES_FILE"
+
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: HyperCapsule ${{ github.ref_name }}
           files: HyperCapsule.apk
+          body_path: ${{ runner.temp }}/release-body.md
+          # body_path already contains 更新说明 + 提交记录; still ask GitHub for
+          # the "Full Changelog" compare link when available.
           generate_release_notes: true
           fail_on_unmatched_files: true
