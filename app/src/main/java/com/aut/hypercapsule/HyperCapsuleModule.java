@@ -15,6 +15,7 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.View;
@@ -40,6 +41,13 @@ public final class HyperCapsuleModule extends XposedModule {
             "com.android.systemui.shared.statusbar.phone.BarTransitions";
     private static final String A17_ISLAND_CONTROLLER =
             "com.android.systemui.statusbar.StatusBarIslandControllerImpl";
+    /** HyperIsland plugin queries SystemUI through this controller (OS3/OS4). */
+    private static final String DYNAMIC_ISLAND_CONTROLLER =
+            "com.android.systemui.statusbar.notification.DynamicIslandController";
+    private static final String ACTION_BACK_REQUEST_IMMERSIVE_MODE =
+            "action_back_request_immersive_mode";
+    private static final String EXTRA_BACK_REQUEST_IMMERSIVE_MODE =
+            "extra_back_request_immersive_mode";
 
     private static final Object LOCK = new Object();
     private static final Map<View, Drawable> ORIGINALS = new WeakHashMap<>();
@@ -48,6 +56,7 @@ public final class HyperCapsuleModule extends XposedModule {
     private static boolean transitionHookInstalled;
     private static boolean applicationHookInstalled;
     private static boolean islandHookInstalled;
+    private static boolean islandViewHookInstalled;
     private static boolean preferenceListenerInstalled;
     private static Context systemUiContext;
     private static SharedPreferences remotePreferences;
@@ -153,6 +162,65 @@ public final class HyperCapsuleModule extends XposedModule {
         if (islandHookInstalled || !SupportedPlatform.supportsIslandHook()) {
             return;
         }
+        // Primary: HyperIsland asks SystemUI via onIslandViewChanged whether to
+        // treat the bar as immersive (game / landscape). Force immersive=true so
+        // the island pill hides in landscape — same path HyperIsland itself uses.
+        boolean viewHook = installIslandImmersiveHook(loader);
+        // Secondary: status-bar island spacing bookkeeping only.
+        boolean countHook = installIslandCountHook(loader);
+        islandHookInstalled = viewHook || countHook;
+    }
+
+    private boolean installIslandImmersiveHook(ClassLoader loader) {
+        if (islandViewHookInstalled) return true;
+        try {
+            Class<?> controller = Class.forName(DYNAMIC_ISLAND_CONTROLLER, false, loader);
+            Method onIslandViewChanged = controller.getDeclaredMethod(
+                    "onIslandViewChanged", Bundle.class);
+            onIslandViewChanged.setAccessible(true);
+            hook(onIslandViewChanged)
+                    .setId("hypercapsule.islandImmersive")
+                    .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                    .intercept(chain -> {
+                        Object result = chain.proceed();
+                        try {
+                            Object arg0 = chain.getArg(0);
+                            Bundle in = arg0 instanceof Bundle ? (Bundle) arg0 : null;
+                            Bundle out = result instanceof Bundle ? (Bundle) result : null;
+                            String action = in != null ? in.getString("action_key") : null;
+                            boolean immersiveQuery =
+                                    ACTION_BACK_REQUEST_IMMERSIVE_MODE.equals(action);
+                            if (!immersiveQuery) {
+                                return result;
+                            }
+                            SharedPreferences preferences = preferences();
+                            if (preferences != null
+                                    && preferences.getBoolean(CapsuleConfig.HIDE_ISLAND, false)
+                                    && isLandscape()) {
+                                if (out == null) {
+                                    out = new Bundle();
+                                }
+                                out.putBoolean(EXTRA_BACK_REQUEST_IMMERSIVE_MODE, true);
+                                return out;
+                            }
+                        } catch (Throwable error) {
+                            log(Log.WARN, TAG, "Island immersive override skipped", error);
+                        }
+                        return result;
+                    });
+            islandViewHookInstalled = true;
+            log(Log.INFO, TAG, "Installed DynamicIslandController.onIslandViewChanged");
+            return true;
+        } catch (ClassNotFoundException | NoSuchMethodException ignored) {
+            log(Log.INFO, TAG, "DynamicIslandController.onIslandViewChanged missing");
+            return false;
+        } catch (Throwable error) {
+            log(Log.WARN, TAG, "Island immersive hook unavailable", error);
+            return false;
+        }
+    }
+
+    private boolean installIslandCountHook(ClassLoader loader) {
         try {
             Class<?> controller = Class.forName(A17_ISLAND_CONTROLLER, false, loader);
             // OS3 (A16): (boolean added, int count, String id)
@@ -183,12 +251,14 @@ public final class HyperCapsuleModule extends XposedModule {
                         }
                         return chain.proceed();
                     });
-            islandHookInstalled = true;
-            log(Log.INFO, TAG, "Installed island hook " + target);
+            log(Log.INFO, TAG, "Installed island count hook " + target);
+            return true;
         } catch (ClassNotFoundException ignored) {
             log(Log.INFO, TAG, "No island controller on this build");
+            return false;
         } catch (Throwable error) {
-            log(Log.WARN, TAG, "Landscape island hook unavailable", error);
+            log(Log.WARN, TAG, "Landscape island count hook unavailable", error);
+            return false;
         }
     }
 
