@@ -2,17 +2,8 @@ package com.aut.hypercapsule.ui
 
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,9 +30,7 @@ import com.aut.hypercapsule.R
 import com.aut.hypercapsule.ui.component.BottomDestination
 import com.aut.hypercapsule.ui.component.HyperBottomBar
 import com.aut.hypercapsule.ui.page.AboutPage
-import com.aut.hypercapsule.ui.page.FeaturesPage
 import com.aut.hypercapsule.ui.page.HomePage
-import com.aut.hypercapsule.ui.page.SettingsPage
 import com.aut.hypercapsule.ui.page.SystemUiPage
 import com.aut.hypercapsule.ui.page.ThemePage
 import kotlinx.coroutines.Job
@@ -58,10 +47,8 @@ import top.yukonga.miuix.kmp.shader.isRenderEffectSupported
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * App shell: pages fill the full window so each page's own background
- * (surface or BgEffect) extends under the floating bottom bar. The bar is an
- * overlay — Scaffold bottomBar would inset the pager and paint a solid strip
- * under the pill.
+ * App 宿主：扁平化 4 个顶层主 Tab（首页、胶囊设置、主题外观、关于）。
+ * 消除过往中间跳板页与二级滑动遮罩，保持导航与操作的极致直接。
  */
 @Composable
 fun HyperCapsuleApp(preferences: AppPreferences) {
@@ -79,8 +66,6 @@ fun HyperCapsuleApp(preferences: AppPreferences) {
     var selectedPage by rememberSaveable { mutableIntStateOf(0) }
     var pageAnimationJob by remember { mutableStateOf<Job?>(null) }
     var pageAnimationTarget by remember { mutableStateOf<Int?>(null) }
-    var systemUiDetailVisible by rememberSaveable { mutableStateOf(false) }
-    var themeDetailVisible by rememberSaveable { mutableStateOf(false) }
     var contentReady by remember { mutableStateOf(false) }
     val blurSupported = isRenderEffectSupported()
     val surfaceColor = MiuixTheme.colorScheme.surface
@@ -92,7 +77,6 @@ fun HyperCapsuleApp(preferences: AppPreferences) {
         preferences.liquidGlassEnabled && blurSupported
     val bottomContentPadding = if (preferences.floatingNavigationEnabled) 122.dp else 96.dp
     val settledPage = pagerState.settledPage
-    val detailsVisible = systemUiDetailVisible || themeDetailVisible
 
     fun performHaptic() {
         if (preferences.hapticFeedbackEnabled) {
@@ -123,20 +107,8 @@ fun HyperCapsuleApp(preferences: AppPreferences) {
         }
     }
 
-    fun closeSystemUiDetail() {
-        if (!systemUiDetailVisible) return
-        performHaptic()
-        systemUiDetailVisible = false
-    }
-
-    fun closeThemeDetail() {
-        if (!themeDetailVisible) return
-        performHaptic()
-        themeDetailVisible = false
-    }
-
-    BackHandler(enabled = detailsVisible) {
-        if (themeDetailVisible) closeThemeDetail() else closeSystemUiDetail()
+    BackHandler(enabled = selectedPage != 0) {
+        selectPage(0)
     }
 
     LaunchedEffect(Unit) {
@@ -163,7 +135,7 @@ fun HyperCapsuleApp(preferences: AppPreferences) {
             modifier = Modifier
                 .fillMaxSize()
                 .then(if (glassActive) Modifier.layerBackdrop(backdrop) else Modifier),
-            userScrollEnabled = !detailsVisible,
+            userScrollEnabled = true,
             beyondViewportPageCount = if (contentReady) 1 else 0,
         ) { page ->
             val isCurrent = page == settledPage || page == pagerState.currentPage
@@ -178,24 +150,18 @@ fun HyperCapsuleApp(preferences: AppPreferences) {
                 }
 
                 1 -> if (contentReady || isCurrent) {
-                    FeaturesPage(
+                    SystemUiPage(
                         preferences = preferences,
                         bottomContentPadding = bottomContentPadding,
-                        onOpenSystemUi = {
-                            performHaptic()
-                            systemUiDetailVisible = true
-                        },
+                        onHaptic = ::performHaptic,
                     )
                 }
 
                 2 -> if (contentReady || isCurrent) {
-                    SettingsPage(
+                    ThemePage(
+                        preferences = preferences,
                         bottomContentPadding = bottomContentPadding,
                         onHaptic = ::performHaptic,
-                        onOpenTheme = {
-                            performHaptic()
-                            themeDetailVisible = true
-                        },
                     )
                 }
 
@@ -205,21 +171,12 @@ fun HyperCapsuleApp(preferences: AppPreferences) {
             }
         }
 
-        // Overlay bottom bar — do not inset the pager; pages paint under the pill.
-        AnimatedVisibility(
-            visible = !detailsVisible,
+        // 常驻底部导航栏
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .zIndex(1f),
-            enter = slideInVertically(
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                initialOffsetY = { it },
-            ) + fadeIn(),
-            exit = slideOutVertically(
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                targetOffsetY = { it },
-            ) + fadeOut(),
         ) {
             HyperBottomBar(
                 destinations = destinations,
@@ -229,60 +186,6 @@ fun HyperCapsuleApp(preferences: AppPreferences) {
                 backdrop = backdrop.takeIf { blurSupported },
                 onSelected = ::selectPage,
             )
-        }
-
-        AnimatedVisibility(
-            visible = systemUiDetailVisible,
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(2f),
-            enter = slideInHorizontally(
-                animationSpec = tween(300, easing = FastOutSlowInEasing),
-                initialOffsetX = { it },
-            ),
-            exit = slideOutHorizontally(
-                animationSpec = tween(260, easing = FastOutSlowInEasing),
-                targetOffsetX = { it },
-            ),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(surfaceColor),
-            ) {
-                SystemUiPage(
-                    preferences = preferences,
-                    onBack = ::closeSystemUiDetail,
-                    onHaptic = ::performHaptic,
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = themeDetailVisible,
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(2f),
-            enter = slideInHorizontally(
-                animationSpec = tween(300, easing = FastOutSlowInEasing),
-                initialOffsetX = { it },
-            ),
-            exit = slideOutHorizontally(
-                animationSpec = tween(260, easing = FastOutSlowInEasing),
-                targetOffsetX = { it },
-            ),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(surfaceColor),
-            ) {
-                ThemePage(
-                    preferences = preferences,
-                    onBack = ::closeThemeDetail,
-                    onHaptic = ::performHaptic,
-                )
-            }
         }
     }
 }

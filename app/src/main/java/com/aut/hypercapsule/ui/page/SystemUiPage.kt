@@ -4,19 +4,29 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.aut.hypercapsule.CapsuleConfig
 import com.aut.hypercapsule.R
 import com.aut.hypercapsule.ui.AppPreferences
-import com.aut.hypercapsule.ui.component.DetailPage
+import com.aut.hypercapsule.ui.component.CapsulePreviewCard
+import com.aut.hypercapsule.ui.component.RootPage
 import com.aut.hypercapsule.ui.component.SectionLabel
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
@@ -26,11 +36,12 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import kotlin.math.abs
 
 @Composable
 fun SystemUiPage(
     preferences: AppPreferences,
-    onBack: () -> Unit,
+    bottomContentPadding: Dp,
     onHaptic: () -> Unit,
 ) {
     val material = preferences.capsuleMaterial
@@ -42,10 +53,19 @@ fun SystemUiPage(
     val showGlass = material == CapsuleConfig.SOFT_GLASS ||
         material == CapsuleConfig.LIQUID_GLASS
 
-    DetailPage(
+    RootPage(
         title = stringResource(R.string.system_ui),
-        onBack = onBack,
+        bottomContentPadding = bottomContentPadding,
     ) {
+        // ── ⓪ 实时预览卡片 ──
+        item {
+            CapsulePreviewCard(
+                preferences = preferences,
+                onHaptic = onHaptic,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+
         // ── ① 材质选择 ──
         item { SectionLabel(stringResource(R.string.group_material_select)) }
         item {
@@ -107,16 +127,14 @@ fun SystemUiPage(
                                 preferences.updateCapsuleTone(toneKeys[index])
                             },
                         )
-                        Text(
-                            stringResource(R.string.capsule_alpha, (preferences.capsuleAlpha * 100).toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "胶囊透明度",
+                            valueText = "${(preferences.capsuleAlpha * 100).toInt()}%",
                             value = preferences.capsuleAlpha,
                             onValueChange = preferences::updateCapsuleAlpha,
                             valueRange = 0f..1f,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            resetValue = 0.40f,
+                            onReset = { preferences.updateCapsuleAlpha(0.40f) },
                         )
                     }
                 }
@@ -131,16 +149,14 @@ fun SystemUiPage(
             ) {
                 Column {
                     Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                        Text(
-                            stringResource(R.string.capsule_blur_radius, preferences.capsuleBlurRadius.toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "高斯模糊半径",
+                            valueText = "${preferences.capsuleBlurRadius.toInt()} dp",
                             value = preferences.capsuleBlurRadius,
                             onValueChange = preferences::updateCapsuleBlurRadius,
                             valueRange = 0f..80f,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            resetValue = 20f,
+                            onReset = { preferences.updateCapsuleBlurRadius(20f) },
                         )
                     }
                 }
@@ -156,38 +172,32 @@ fun SystemUiPage(
                 Column {
                     SectionLabel(stringResource(R.string.group_glass_params))
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            stringResource(R.string.capsule_edge_strength, (preferences.capsuleEdgeStrength * 100).toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "边缘高光强度",
+                            valueText = "${(preferences.capsuleEdgeStrength * 100).toInt()}%",
                             value = preferences.capsuleEdgeStrength,
                             onValueChange = preferences::updateCapsuleEdgeStrength,
                             valueRange = 0f..1f,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            resetValue = 0.55f,
+                            onReset = { preferences.updateCapsuleEdgeStrength(0.55f) },
                         )
-                        Text(
-                            stringResource(R.string.capsule_refraction_strength, (preferences.capsuleRefractionStrength * 100).toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "玻璃折射强度",
+                            valueText = "${(preferences.capsuleRefractionStrength * 100).toInt()}%",
                             value = preferences.capsuleRefractionStrength,
                             onValueChange = preferences::updateCapsuleRefractionStrength,
                             valueRange = 0f..1f,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            resetValue = 0.25f,
+                            onReset = { preferences.updateCapsuleRefractionStrength(0.25f) },
                         )
-                        Text(
-                            stringResource(R.string.capsule_light_direction, preferences.capsuleLightDirection.toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "光源照射方向",
+                            valueText = "${preferences.capsuleLightDirection.toInt()}°",
                             value = preferences.capsuleLightDirection,
                             onValueChange = preferences::updateCapsuleLightDirection,
                             valueRange = 0f..359f,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            resetValue = 225f,
+                            onReset = { preferences.updateCapsuleLightDirection(225f) },
                         )
                     }
                 }
@@ -198,77 +208,63 @@ fun SystemUiPage(
         item { SectionLabel(stringResource(R.string.group_size_alignment)) }
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
-                // 圆角半径：-1 = 自动, 0~40 = 固定值
                 val radiusAuto = preferences.cornerRadius < 0f
-                Text(
-                    stringResource(R.string.capsule_corner_radius) + "：" +
-                        if (radiusAuto) stringResource(R.string.capsule_corner_radius_auto)
-                        else stringResource(R.string.capsule_corner_radius_value, preferences.cornerRadius.toInt()),
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                    style = MiuixTheme.textStyles.body2,
-                )
-                Slider(
+                CapsuleSlider(
+                    title = stringResource(R.string.capsule_corner_radius),
+                    valueText = if (radiusAuto) stringResource(R.string.capsule_corner_radius_auto)
+                    else stringResource(R.string.capsule_corner_radius_value, preferences.cornerRadius.toInt()),
                     value = preferences.cornerRadius,
                     onValueChange = preferences::updateCornerRadius,
                     valueRange = -1f..40f,
-                    modifier = Modifier.padding(horizontal = 18.dp),
+                    resetValue = -1f,
+                    onReset = { preferences.updateCornerRadius(-1f) },
                 )
-                Text(
-                    stringResource(R.string.capsule_height, preferences.capsuleHeight.toInt()),
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                    style = MiuixTheme.textStyles.body2,
-                )
-                Slider(
+                CapsuleSlider(
+                    title = "胶囊总高度",
+                    valueText = "${preferences.capsuleHeight.toInt()} dp",
                     value = preferences.capsuleHeight,
                     onValueChange = preferences::updateCapsuleHeight,
                     valueRange = 8f..80f,
-                    modifier = Modifier.padding(horizontal = 18.dp),
+                    resetValue = 24f,
+                    onReset = { preferences.updateCapsuleHeight(24f) },
                 )
-                Text(
-                    stringResource(R.string.horizontal_padding, preferences.horizontalPadding.toInt()),
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                    style = MiuixTheme.textStyles.body2,
-                )
-                Slider(
+                CapsuleSlider(
+                    title = "水平内边距",
+                    valueText = "${preferences.horizontalPadding.toInt()} dp",
                     value = preferences.horizontalPadding,
                     onValueChange = preferences::updateHorizontalPadding,
                     valueRange = 0f..64f,
-                    modifier = Modifier.padding(horizontal = 18.dp),
+                    resetValue = 8f,
+                    onReset = { preferences.updateHorizontalPadding(8f) },
                 )
-                Text(
-                    stringResource(R.string.vertical_inset, preferences.verticalInset.toInt()),
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                    style = MiuixTheme.textStyles.body2,
-                )
-                Slider(
+                CapsuleSlider(
+                    title = "垂直内间距",
+                    valueText = "${preferences.verticalInset.toInt()} dp",
                     value = preferences.verticalInset,
                     onValueChange = preferences::updateVerticalInset,
                     valueRange = 0f..32f,
-                    modifier = Modifier.padding(horizontal = 18.dp),
+                    resetValue = 2f,
+                    onReset = { preferences.updateVerticalInset(2f) },
                 )
-                Text(
-                    stringResource(R.string.global_horizontal_offset, preferences.globalOffsetX.toInt()),
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                    style = MiuixTheme.textStyles.body2,
-                )
-                Slider(
+                CapsuleSlider(
+                    title = "全局水平偏移",
+                    valueText = "${preferences.globalOffsetX.toInt()} dp",
                     value = preferences.globalOffsetX.coerceIn(-200f, 200f),
                     onValueChange = preferences::updateGlobalOffsetX,
                     valueRange = -200f..200f,
-                    steps = 39,
-                    modifier = Modifier.padding(horizontal = 18.dp),
+                    steps = 0,
+                    resetValue = 0f,
+                    onReset = { preferences.updateGlobalOffsetX(0f) },
                 )
-                Text(
-                    stringResource(R.string.global_vertical_offset, preferences.globalOffsetY.toInt()),
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                    style = MiuixTheme.textStyles.body2,
-                )
-                Slider(
+                CapsuleSlider(
+                    title = "全局垂直偏移",
+                    valueText = "${preferences.globalOffsetY.toInt()} dp",
                     value = preferences.globalOffsetY.coerceIn(-200f, 200f),
                     onValueChange = preferences::updateGlobalOffsetY,
                     valueRange = -200f..200f,
-                    steps = 39,
-                    modifier = Modifier.padding(horizontal = 18.dp),
+                    steps = 0,
+                    resetValue = 0f,
+                    onReset = { preferences.updateGlobalOffsetY(0f) },
                 )
             }
         }
@@ -277,7 +273,6 @@ fun SystemUiPage(
         item { SectionLabel(stringResource(R.string.group_left_right_control)) }
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
-                // 左胶囊
                 PreferenceSwitch(
                     checked = preferences.leftCapsuleEnabled,
                     onCheckedChange = { onHaptic(); preferences.updateLeftCapsuleEnabled(it) },
@@ -296,51 +291,43 @@ fun SystemUiPage(
                             title = stringResource(R.string.include_notification_icons),
                             summary = stringResource(R.string.include_notification_icons_summary),
                         )
-                        Text(
-                            stringResource(R.string.left_horizontal_offset, preferences.leftOffsetX.toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "左胶囊水平偏移",
+                            valueText = "${preferences.leftOffsetX.toInt()} dp",
                             value = preferences.leftOffsetX.coerceIn(-200f, 200f),
                             onValueChange = preferences::updateLeftOffsetX,
                             valueRange = -200f..200f,
-                            steps = 39,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            steps = 0,
+                            resetValue = 0f,
+                            onReset = { preferences.updateLeftOffsetX(0f) },
                         )
-                        Text(
-                            stringResource(R.string.left_vertical_offset, preferences.leftOffsetY.toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "左胶囊垂直偏移",
+                            valueText = "${preferences.leftOffsetY.toInt()} dp",
                             value = preferences.leftOffsetY.coerceIn(-200f, 200f),
                             onValueChange = preferences::updateLeftOffsetY,
                             valueRange = -200f..200f,
-                            steps = 39,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            steps = 0,
+                            resetValue = 0f,
+                            onReset = { preferences.updateLeftOffsetY(0f) },
                         )
-                        Text(
-                            stringResource(R.string.left_padding_x, preferences.leftPaddingX.toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "左胶囊额外水平边距",
+                            valueText = "${preferences.leftPaddingX.toInt()} dp",
                             value = preferences.leftPaddingX,
                             onValueChange = preferences::updateLeftPaddingX,
                             valueRange = -32f..64f,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            resetValue = 0f,
+                            onReset = { preferences.updateLeftPaddingX(0f) },
                         )
-                        Text(
-                            stringResource(R.string.left_padding_y, preferences.leftPaddingY.toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "左胶囊额外垂直边距",
+                            valueText = "${preferences.leftPaddingY.toInt()} dp",
                             value = preferences.leftPaddingY,
                             onValueChange = preferences::updateLeftPaddingY,
                             valueRange = -16f..32f,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            resetValue = 0f,
+                            onReset = { preferences.updateLeftPaddingY(0f) },
                         )
                         val horizontal = listOf(
                             stringResource(R.string.align_start),
@@ -370,7 +357,6 @@ fun SystemUiPage(
         }
         item {
             Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                // 右胶囊
                 PreferenceSwitch(
                     checked = preferences.rightCapsuleEnabled,
                     onCheckedChange = { onHaptic(); preferences.updateRightCapsuleEnabled(it) },
@@ -383,51 +369,43 @@ fun SystemUiPage(
                     exit = shrinkVertically(),
                 ) {
                     Column {
-                        Text(
-                            stringResource(R.string.right_horizontal_offset, preferences.rightOffsetX.toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "右胶囊水平偏移",
+                            valueText = "${preferences.rightOffsetX.toInt()} dp",
                             value = preferences.rightOffsetX.coerceIn(-200f, 200f),
                             onValueChange = preferences::updateRightOffsetX,
                             valueRange = -200f..200f,
-                            steps = 39,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            steps = 0,
+                            resetValue = 0f,
+                            onReset = { preferences.updateRightOffsetX(0f) },
                         )
-                        Text(
-                            stringResource(R.string.right_vertical_offset, preferences.rightOffsetY.toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "右胶囊垂直偏移",
+                            valueText = "${preferences.rightOffsetY.toInt()} dp",
                             value = preferences.rightOffsetY.coerceIn(-200f, 200f),
                             onValueChange = preferences::updateRightOffsetY,
                             valueRange = -200f..200f,
-                            steps = 39,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            steps = 0,
+                            resetValue = 0f,
+                            onReset = { preferences.updateRightOffsetY(0f) },
                         )
-                        Text(
-                            stringResource(R.string.right_padding_x, preferences.rightPaddingX.toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "右胶囊额外水平边距",
+                            valueText = "${preferences.rightPaddingX.toInt()} dp",
                             value = preferences.rightPaddingX,
                             onValueChange = preferences::updateRightPaddingX,
                             valueRange = -32f..64f,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            resetValue = 0f,
+                            onReset = { preferences.updateRightPaddingX(0f) },
                         )
-                        Text(
-                            stringResource(R.string.right_padding_y, preferences.rightPaddingY.toInt()),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                        Slider(
+                        CapsuleSlider(
+                            title = "右胶囊额外垂直边距",
+                            valueText = "${preferences.rightPaddingY.toInt()} dp",
                             value = preferences.rightPaddingY,
                             onValueChange = preferences::updateRightPaddingY,
                             valueRange = -16f..32f,
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            resetValue = 0f,
+                            onReset = { preferences.updateRightPaddingY(0f) },
                         )
                         val horizontal = listOf(
                             stringResource(R.string.align_start),
@@ -581,6 +559,61 @@ fun SystemUiPage(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun CapsuleSlider(
+    title: String,
+    valueText: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    modifier: Modifier = Modifier,
+    steps: Int = 0,
+    resetValue: Float? = null,
+    onReset: (() -> Unit)? = null,
+) {
+    Column(modifier = modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = title,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurface,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = valueText,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
+                )
+                if (resetValue != null && onReset != null && abs(value - resetValue) > 0.01f) {
+                    Text(
+                        text = "归零",
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+                            .clickable { onReset() }
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps,
+            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+        )
     }
 }
 

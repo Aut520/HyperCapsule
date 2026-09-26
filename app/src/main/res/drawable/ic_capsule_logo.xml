@@ -4,40 +4,76 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- 状态栏天际线（微弱透明导轨，象征沉浸式状态栏） -->
+    <path
+        android:pathData="M16,54 H92"
+        android:strokeColor="#2EFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.2" />
+
+    <!-- ──── 左胶囊（时间微晶胶囊） ──── -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M32,18 H76 C85.4,18 93,25.2 93,34 C93,42.8 85.4,50 76,50 H32 C22.6,50 15,42.8 15,34 C15,25.2 22.6,18 32,18 Z"
-        android:strokeColor="#33000000"
+        android:pathData="M30,44 H38 C43.52,44 48,48.48 48,54 C48,59.52 43.52,64 38,64 H30 C24.48,64 20,59.52 20,54 C20,48.48 24.48,44 30,44 Z"
+        android:strokeColor="#4DFFFFFF"
         android:strokeWidth="1" />
-    <path
-        android:fillColor="#FF111318"
-        android:pathData="M27,25 H34 V27 H27 Z M33,26 H35 V32 H33 Z M33,33 H35 V39 H33 Z M27,38 H34 V40 H27 Z M26,26 H28 V33 H26 Z M27,31.5 H34 V33.5 H27 Z M41,26 H43 V33 H41 Z M42,31.5 H49 V33.5 H42 Z M47,26 H49 V33 H47 Z M47,33 H49 V40 H47 Z M55,26 H58 V40 H56 V28 H55 Z M37,29 A1.25,1.25 0,1 0,39.5 29 A1.25,1.25 0,1 0,37 29 M37,36 A1.25,1.25 0,1 0,39.5 36 A1.25,1.25 0,1 0,37 36" />
+
+    <!-- 时钟表盘与指针（象征时间状态） -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M65,27.5 C65,25.6 66.6,24 68.5,24 H81.5 C83.4,24 85,25.6 85,27.5 V38.5 C85,40.4 83.4,42 81.5,42 H68.5 C66.6,42 65,40.4 65,38.5 Z M88,30 V36"
-        android:strokeColor="#FF111318"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="2" />
-    <path
-        android:fillColor="#FF111318"
-        android:pathData="M68.5,27 H79 V39 H68.5 Z" />
-    <path
-        android:fillColor="#FF111318"
-        android:pathData="M32,58 H76 C85.4,58 93,65.2 93,74 C93,82.8 85.4,90 76,90 H32 C22.6,90 15,82.8 15,74 C15,65.2 22.6,58 32,58 Z"
-        android:strokeColor="#66FFFFFF"
-        android:strokeWidth="1" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M27,79 C27,77.9 27.9,77 29,77 H32 C33.1,77 34,77.9 34,79 V83 H27 Z M37,74 C37,72.9 37.9,72 39,72 H42 C43.1,72 44,72.9 44,74 V83 H37 Z M47,68 C47,66.9 47.9,66 49,66 H52 C53.1,66 54,66.9 54,68 V83 H47 Z" />
+        android:pathData="M29,49.5 C31.48,49.5 33.5,51.52 33.5,54 C33.5,56.48 31.48,58.5 29,58.5 C26.52,58.5 24.5,56.48 24.5,54 C24.5,51.52 26.52,49.5 29,49.5 Z"
+        android:strokeColor="#FF0F172A"
+        android:strokeWidth="1.2" />
     <path
         android:fillColor="#00000000"
-        android:pathData="M62,70 C68.4,64.7 77.6,64.7 84,70 M66,75 C70.2,71.6 75.8,71.6 80,75 M70.5,79.5 C72.5,78 73.5,78 75.5,79.5"
-        android:strokeColor="#FFFFFFFF"
+        android:pathData="M29,51.6 V54 H31.2"
+        android:strokeColor="#FF0F172A"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:strokeWidth="3" />
+        android:strokeWidth="1.2" />
+
+    <!-- 灵动通知脉冲徽标（蓝点） -->
+    <path
+        android:fillColor="#FF2563EB"
+        android:pathData="M39,51.8 C40.21,51.8 41.2,52.79 41.2,54 C41.2,55.21 40.21,56.2 39,56.2 C37.79,56.2 36.8,55.21 36.8,54 C36.8,52.79 37.79,51.8 39,51.8 Z" />
+
+    <!-- ──── 中置微型挖孔摄像头 ──── -->
+    <path
+        android:fillColor="#FF090D16"
+        android:pathData="M54,51.5 C55.38,51.5 56.5,52.62 56.5,54 C56.5,55.38 55.38,56.5 54,56.5 C52.62,56.5 51.5,55.38 51.5,54 C51.5,52.62 52.62,51.5 54,51.5 Z"
+        android:strokeColor="#33FFFFFF"
+        android:strokeWidth="0.8" />
+
+    <!-- ──── 右胶囊（系统电量胶囊） ──── -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M71.8,82.5 A2.2,2.2 0,1 0,76.2 82.5 A2.2,2.2 0,1 0,71.8 82.5" />
+        android:pathData="M70,44 H78 C83.52,44 88,48.48 88,54 C88,59.52 83.52,64 78,64 H70 C64.48,64 60,59.52 60,54 C60,48.48 64.48,44 70,44 Z"
+        android:strokeColor="#4DFFFFFF"
+        android:strokeWidth="1" />
+
+    <!-- 阶梯信号条 -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M65.5,55.8 V57.2 M67.8,53.8 V57.2 M70.1,51.8 V57.2"
+        android:strokeColor="#FF0F172A"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.1" />
+
+    <!-- 电池外框与极柱 -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M74.8,51 H80.8 C81.46,51 82,51.54 82,52.2 V55.8 C82,56.46 81.46,57 80.8,57 H74.8 C74.14,57 73.6,56.46 73.6,55.8 V52.2 C73.6,51.54 74.14,51 74.8,51 Z"
+        android:strokeColor="#FF0F172A"
+        android:strokeWidth="0.9" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M83,52.8 V55.2"
+        android:strokeColor="#FF0F172A"
+        android:strokeLineCap="round"
+        android:strokeWidth="0.9" />
+
+    <!-- 电池绿色电量核心 -->
+    <path
+        android:fillColor="#FF22C55E"
+        android:pathData="M74.6,52 H79.5 V56 H74.6 Z" />
 </vector>

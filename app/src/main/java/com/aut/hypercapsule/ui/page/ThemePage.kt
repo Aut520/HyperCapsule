@@ -2,15 +2,14 @@ package com.aut.hypercapsule.ui.page
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.aut.hypercapsule.R
 import com.aut.hypercapsule.ui.AppPreferences
-import com.aut.hypercapsule.ui.component.DetailPage
+import com.aut.hypercapsule.ui.component.RootPage
 import com.aut.hypercapsule.ui.component.SectionLabel
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
@@ -19,12 +18,12 @@ import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.shader.isRenderEffectSupported
 
 /**
- * 界面主题与外观。纯 Miuix 偏好组件，与 KernelSU 主题设置结构对齐。
+ * 界面主题与外观。纯 Miuix 偏好组件，作为顶层「设置」Tab 直接展示。
  */
 @Composable
 fun ThemePage(
     preferences: AppPreferences,
-    onBack: () -> Unit,
+    bottomContentPadding: Dp,
     onHaptic: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -43,9 +42,9 @@ fun ThemePage(
     )
     val paletteKeys = AppPreferences.PALETTES
 
-    DetailPage(
-        title = stringResource(R.string.theme_page_title),
-        onBack = onBack,
+    RootPage(
+        title = stringResource(R.string.nav_settings),
+        bottomContentPadding = bottomContentPadding,
     ) {
         item { SectionLabel(stringResource(R.string.theme_section_color)) }
         item {

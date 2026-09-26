@@ -147,11 +147,23 @@ private fun AboutHero(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Image(
-            painter = painterResource(R.drawable.ic_capsule_logo),
-            contentDescription = stringResource(R.string.app_icon_description),
-            modifier = Modifier.size(96.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(92.dp)
+                .clip(RoundedCornerShape(22.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_capsule_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Image(
+                painter = painterResource(R.drawable.ic_capsule_logo),
+                contentDescription = stringResource(R.string.app_icon_description),
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         Text(
             text = stringResource(R.string.app_name),
             modifier = Modifier.padding(top = 18.dp),

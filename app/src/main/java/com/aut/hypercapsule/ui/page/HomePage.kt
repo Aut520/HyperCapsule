@@ -147,15 +147,15 @@ private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
     val dark = colorScheme.surface.luminance() < 0.5f
     val accentColor = when {
         active && dark -> Color(0xFF9ADBB4)
-        active -> colorScheme.primary
+        active -> Color(0xFF1B5E20)
         dark -> Color(0xFFFFB4AB)
-        else -> colorScheme.error
+        else -> Color(0xFFB3261E)
     }
     val backgroundColor = when {
         active && dark -> Color(0xFF1B3B2A)
-        active -> colorScheme.surface
+        active -> Color(0xFFE8F5E9)
         dark -> Color(0xFF4A201C)
-        else -> colorScheme.surface
+        else -> Color(0xFFFDE8E8)
     }
     val icon: ImageVector = if (active) MiuixIcons.Ok else MiuixIcons.Close
 
@@ -171,10 +171,10 @@ private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .offset(27.dp, 31.dp)
-                    .size(110.dp),
-                tint = accentColor.copy(alpha = if (dark) 0.28f else 0.12f),
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 12.dp)
+                    .size(68.dp),
+                tint = accentColor.copy(alpha = if (dark) 0.28f else 0.18f),
             )
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -189,7 +189,7 @@ private fun StatusCard(status: ModuleStatus, modifier: Modifier = Modifier) {
                     text = stringResource(R.string.software_version, BuildConfig.VERSION_NAME),
                     modifier = Modifier.padding(top = 2.dp),
                     color = if (dark) accentColor.copy(alpha = 0.72f)
-                    else colorScheme.onSurfaceVariantSummary,
+                    else accentColor.copy(alpha = 0.70f),
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.Medium,
                 )
